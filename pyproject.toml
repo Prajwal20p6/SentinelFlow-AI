@@ -1,0 +1,19 @@
+[project]
+name = "sentinelflow-ai"
+version = "0.1.0"
+description = "SentinelFlow AI — Cyber-Defense SecOps Automation Platform"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "SentinelFlow AI Development Team", email = "dev@sentinelflow.ai" }
+]
+dependencies = []
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "backend/tests",
+    "tests",
+]
+pythonpath = ["backend"]

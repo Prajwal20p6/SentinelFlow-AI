@@ -1,0 +1,30 @@
+groups:
+  - name: sentinelflow
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        annotations:
+          summary: "High HTTP 5xx error rate detected on SentinelFlow API"
+          description: "API gateway has returned more than 5% errors (5xx) over the last 5 minutes."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, http_request_duration_seconds_bucket) > 1.0
+        for: 5m
+        annotations:
+          summary: "API Latency spike detected"
+          description: "95th percentile response latency exceeds 1.0 second over 5 minutes."
+
+      - alert: SelfHealingFailure
+        expr: sf_workflow_step_status{status="failed"} > 0
+        for: 1m
+        annotations:
+          summary: "Self-healing step execution failed"
+          description: "An automated remediation workflow step has entered the FAILED state."
+
+      - alert: WebSocketActiveConnectionsDrop
+        expr: sf_ws_connections_active == 0
+        for: 10m
+        annotations:
+          summary: "No active WebSocket connection sessions"
+          description: "Active WebSocket connection count has dropped to zero for over 10 minutes."

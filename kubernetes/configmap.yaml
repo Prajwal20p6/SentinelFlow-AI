@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sentinelflow-config
+  namespace: default
+data:
+  redis-url: "redis://sentinelflow-redis-service:6379"
+  qdrant-host: "sentinelflow-qdrant-service"
+  qdrant-port: "6333"
+  mastra-url: "http://sentinelflow-mastra-service:4111"
+  allowed-origins: "http://localhost:3000,http://127.0.0.1:3000"
+  log-level: "INFO"

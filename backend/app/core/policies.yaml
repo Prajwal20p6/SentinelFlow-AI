@@ -1,0 +1,50 @@
+version: 1.0.0
+policies:
+  - name: Critical System Actions
+    strictness: high
+    rules:
+      - pattern: "\\brm\\s+(-[a-zA-Z]*f[a-zA-Z]*\\s+|)(/|~|\\.\\.)"
+        action: DENY
+        reason: "Forced folder deletion traversal on system root"
+      - pattern: "\\b(shutdown|reboot|halt|poweroff)\\b"
+        action: DENY
+        reason: "System power operations leading to outage"
+      - pattern: "\\bchmod\\s+(-R\\s+)?777\\b"
+        action: DENY
+        reason: "Recursive open permissions"
+      - pattern: "\\biptables\\s+(-F|--flush)"
+        action: DENY
+        reason: "Firewall rules flush"
+  - name: Dangerous Kubernetes Actions
+    strictness: medium
+    rules:
+      - pattern: "\\bkubectl\\s+delete\\s+(namespace|ns)\\b"
+        action: DENY
+        reason: "Kubernetes namespace deletion"
+      - pattern: "\\bkubectl\\s+delete\\s+--all\\b"
+        action: DENY
+        reason: "Cluster-wide all resources deletion"
+  - name: Database Actions
+    strictness: medium
+    rules:
+      - pattern: "\\bDROP\\s+(TABLE|DATABASE)\\b"
+        action: DENY
+        reason: "Database drops resulting in data loss"
+      - pattern: "\\bTRUNCATE\\b"
+        action: DENY
+        reason: "Truncate table commands"
+      - pattern: "\\bFLUSHALL\\b"
+        action: DENY
+        reason: "Redis flush clearing all memory cache"
+  - name: Remote Shell Code
+    strictness: medium
+    rules:
+      - pattern: "\\bcurl\\s+.*\\|\\s*(bash|sh)\\b"
+        action: DENY
+        reason: "Remote scripts piped execution"
+  - name: Autopilot Scale Warning
+    strictness: medium
+    rules:
+      - pattern: "\\bkubectl\\s+scale\\b.*--replicas=0\\b"
+        action: WARN
+        reason: "Scaling replicas down to zero causing outage"
