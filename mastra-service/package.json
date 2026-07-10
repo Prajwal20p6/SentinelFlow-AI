@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc || true",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --external:axios --external:express --external:dotenv --external:@mastra/core --external:@mastra/memory",
     "start": "node dist/index.js"
   },
   "dependencies": {
@@ -16,6 +16,7 @@
     "qdrant-js": "latest"
   },
   "devDependencies": {
+    "esbuild": "^0.20.0",
     "typescript": "latest",
     "tsx": "latest",
     "@types/express": "latest",
