@@ -10,6 +10,8 @@ python-multipart>=0.0.9
 sqlalchemy>=2.0.30
 alembic>=1.13.0
 aiosqlite>=0.20.0
+asyncpg>=0.29.0
+
 
 # ── Vector Database ──
 qdrant-client>=1.10.0
