@@ -19,6 +19,7 @@ qdrant-client>=1.10.0
 # ── Authentication & Security ──
 pyjwt[crypto]>=2.8.0
 passlib[bcrypt]>=1.7.4
+argon2-cffi>=23.1.0
 pyotp>=2.9.0
 cryptography>=42.0.0
 enkryptai-sdk>=1.0.0
