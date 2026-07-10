@@ -63,12 +63,13 @@ class Settings(BaseSettings):
 
     # ── Mastra ───────────────────────────────────────────────
     MASTRA_URL: str = "http://localhost:4111"
+    MASTRA_SERVICE_URL: str = "http://localhost:3001"
     MASTRA_ENABLED: bool = True
 
-    # ── Enkrypt AI ───────────────────────────────────────────
-    ENKRYPT_ENABLED: bool = True
-    ENKRYPT_API_KEY: str = ""
-    ENKRYPT_STRICTNESS: str = "high"
+    # Official Enkrypt Configuration (verified from official docs)
+    ENKRYPTAI_API_KEY: str = ""
+    ENKRYPTAI_BASE_URL: str = "https://api.enkryptai.com"
+    ENKRYPTAI_ENABLED: bool = True
 
     # ── Slack ────────────────────────────────────────────────
     SLACK_ENABLED: bool = False

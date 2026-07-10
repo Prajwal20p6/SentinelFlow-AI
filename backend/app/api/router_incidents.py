@@ -481,13 +481,13 @@ def get_incident_attack_graph(
 
 
 @router.post("/{incident_id}/execute-remediation")
-def execute_remediation_option(
+async def execute_remediation_option(
     incident_id: int,
     body: ExecuteRemediationRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("engineer")),
 ):
-    """Execute selected ranked option on target namespace."""
+    """Execute selected ranked option with official Enkrypt AI validation."""
     incident = get_incident(db, incident_id)
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
@@ -501,8 +501,44 @@ def execute_remediation_option(
     if not selected_option:
         raise HTTPException(status_code=400, detail="Invalid remediation option selected")
 
+    command = selected_option["command"]
+
+    from ..core.config import get_settings
+    settings = get_settings()
+
+    if settings.ENKRYPTAI_ENABLED:
+        from ..services.enkrypt_service import EnkryptSafetyService
+        enkrypt = EnkryptSafetyService(
+            api_key=settings.ENKRYPTAI_API_KEY,
+            base_url=settings.ENKRYPTAI_BASE_URL
+        )
+        try:
+            validation = await enkrypt.validate_command(
+                command=command,
+                context={
+                    "incident_id": incident_id,
+                    "incident_type": incident.metric_type,
+                    "severity": incident.severity
+                }
+            )
+            if not validation.get("is_safe", True):
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "message": "Command blocked by Enkrypt AI guardrails",
+                        "risk_score": validation.get("risk_score", 0.99),
+                        "violations": validation.get("violations", [])
+                    }
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            # Fallback to keep cluster resilient when safety API is down
+            from ..core.observability import logger
+            logger.warning(f"Enkrypt API unreachable during remediation check: {str(e)}")
+
     # Update incident suggested action to selected command
-    incident.suggested_action = selected_option["command"]
+    incident.suggested_action = command
     db.commit()
 
     # Trigger actual action execution logic
@@ -512,7 +548,7 @@ def execute_remediation_option(
     return {
         "success": True,
         "message": f"Remediation option '{selected_option['name']}' selected and queued for run.",
-        "command": selected_option["command"]
+        "command": command
     }
 
 

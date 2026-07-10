@@ -19,6 +19,7 @@ pyjwt[crypto]>=2.8.0
 passlib[bcrypt]>=1.7.4
 pyotp>=2.9.0
 cryptography>=42.0.0
+enkryptai-sdk>=1.0.0
 
 # ── ML & Data ──
 scikit-learn>=1.5.0

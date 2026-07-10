@@ -43,6 +43,7 @@ def override_settings():
     settings.FF_MFA_REQUIRED = False
     settings.OTEL_ENABLED = False
     settings.MASTRA_ENABLED = False
+    settings.ENKRYPTAI_ENABLED = False
     settings.SECRET_KEY = "sentinelflow-test-secret-key-at-least-32-bytes-long"
 
     import app.core.database

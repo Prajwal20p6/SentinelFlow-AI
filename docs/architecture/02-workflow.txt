@@ -1,0 +1,46 @@
+Telemetry Alert
+     │
+     ▼
+Anomaly Detection
+     │
+     ▼
+Workflow Orchestration (Mastra)
+     │
+     ├─► Step 1: RCA Analysis (get_metrics, get_logs tools)
+     │
+     ├─► Step 2: Threat Intel (IOC lookups)
+     │
+     ├─► Step 3: Prioritization (SLA assignment)
+     │
+     └─► Step 4: Remediation Planning
+            │
+            ├─► Call /api/v1/security/validate-command
+            │
+            ├─► Qdrant.search_similar_runbooks()
+            │
+            └─► Recommend remediation options
+                 │
+                 ▼
+            SRE Approval Screen
+                 │
+            ┌────┴────┐
+            ▼         ▼
+         Approve   Reject
+            │
+            ▼
+    /execute-remediation
+            │
+            ▼
+    Enkrypt AI Validation
+            │
+        ┌───┴───┐
+        ▼       ▼
+      Safe   Unsafe
+        │       │
+        │       └──► 403 Forbidden
+        │
+        ▼
+  Execute Command
+        │
+        ▼
+   Update DB

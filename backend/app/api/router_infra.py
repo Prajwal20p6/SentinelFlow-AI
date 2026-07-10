@@ -26,7 +26,7 @@ def get_topology(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/execute-command", response_model=CommandExecuteResponse)
-def execute_command(
+async def execute_command(
     body: CommandExecuteRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("engineer")),
@@ -35,6 +35,39 @@ def execute_command(
     Execute a guarded infrastructure command.
     Evaluates safety via Enkrypt AI, writes tamper-evident audit log.
     """
+    from ..core.config import get_settings
+    settings = get_settings()
+
+    if settings.ENKRYPTAI_ENABLED:
+        from ..services.enkrypt_service import EnkryptSafetyService
+        enkrypt = EnkryptSafetyService(
+            api_key=settings.ENKRYPTAI_API_KEY,
+            base_url=settings.ENKRYPTAI_BASE_URL
+        )
+        try:
+            validation = await enkrypt.validate_command(
+                command=body.command,
+                context={
+                    "incident_id": body.incident_id,
+                }
+            )
+            if not validation.get("is_safe", True):
+                import json
+                raise HTTPException(
+                    status_code=403,
+                    detail=json.dumps({
+                        "message": "Command blocked by Enkrypt AI guardrails",
+                        "risk_score": validation.get("risk_score", 0.99),
+                        "violations": validation.get("violations", [])
+                    })
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            # Fallback to keep cluster resilient when safety API is down
+            from ..core.observability import logger
+            logger.warning(f"Enkrypt API unreachable during command execution check: {str(e)}")
+
     result = execute_guarded_command(
         db=db,
         command=body.command,

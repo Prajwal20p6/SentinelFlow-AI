@@ -1,0 +1,26 @@
+Incident Description
+     │
+     ▼
+SentenceTransformer
+(all-MiniLM-L6-v2)
+     │
+     ▼
+384-dim Vector
+     │
+     ▼
+Qdrant Search
+     │
+     ├─ Query: Collection "runbooks"
+     │
+     ├─ Returns: Top 3 similar runbooks
+     │
+     └─ Scores: Similarity (0-1)
+     │
+     ▼
+  Inject into
+ Reasoning Context
+     │
+     ▼
+  Mastra Agent
+  Uses runbooks
+  for recommendations

@@ -1,0 +1,24 @@
+{
+  "name": "sentinelflow-mastra-service",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@mastra/core": "latest",
+    "@mastra/memory": "latest",
+    "express": "latest",
+    "dotenv": "latest",
+    "axios": "latest",
+    "qdrant-js": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "tsx": "latest",
+    "@types/express": "latest",
+    "@types/node": "latest"
+  }
+}

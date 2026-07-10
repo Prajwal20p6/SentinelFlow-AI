@@ -71,9 +71,10 @@ class LLMServiceManager:
             except Exception as e:
                 logger.warning("llm_anthropic_init_failed", error=str(e))
                 
-        if GEMINI_AVAILABLE and settings.ENKRYPT_API_KEY:  # Gemini configuration
+        google_key = os.getenv("GOOGLE_API_KEY")
+        if GEMINI_AVAILABLE and google_key:  # Gemini configuration
             try:
-                genai.configure(api_key=settings.ENKRYPT_API_KEY)
+                genai.configure(api_key=google_key)
             except Exception as e:
                 logger.warning("llm_gemini_init_failed", error=str(e))
 

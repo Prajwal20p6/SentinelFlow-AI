@@ -47,3 +47,12 @@ htmlcov/
 # Build
 *.pkl
 *.model
+
+# Temporary Database Logs
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Logs
+*.log
+

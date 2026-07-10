@@ -1,0 +1,23 @@
+Command Input
+     │
+     ▼
+Enkrypt AI SDK
+(EnkryptAI.validate)
+     │
+     ├─ Check: Prompt Injection
+     │
+     ├─ Check: Command Injection
+     │
+     ├─ Check: Sensitive Data
+     │
+     └─ Generate: Risk Score
+     │
+     ▼
+  Validation Result
+  ├─ is_safe (boolean)
+  ├─ risk_score (0-100)
+  └─ violations (array)
+     │
+     ├─ if is_safe: ✅ Allow
+     │
+     └─ if unsafe: ❌ Block (403)

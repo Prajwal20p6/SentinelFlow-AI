@@ -1,0 +1,34 @@
+User Browser (Next.js)
+        │
+        ├─── HTTP/WebSocket
+        ▼
+FastAPI Backend
+  ├─ Router: Telemetry
+  ├─├─ Router: Incidents
+  ├─ Router: Security
+  ├─ Router: Cloud
+  └─ Services: Workflow, RAG, Enkrypt
+        │
+        ├─── HTTP ─────┐
+        │              ▼
+        │         Mastra Service
+        │         (Node.js)
+        │         ├─ RCA Agent
+        │         ├─ Threat Intel Agent
+        │         ├─ Prioritization Agent
+        │         └─ Remediation Agent
+        │
+        ├─── HTTP ─────┐
+        │              ▼
+        │         Enkrypt AI API
+        │         (https://api.enkryptai.com)
+        │
+        └─── HTTP ─────┐
+                       ▼
+                   Qdrant VDB
+                   (Local Embedded)
+                   Collections:
+                   ├─ runbooks
+                   ├─ shared_memory
+                   ├─ org_memory
+                   └─ agent_memory
