@@ -253,5 +253,9 @@ def seed_default_users(db: Session) -> None:
             existing.hashed_password = hash_password(u["password"])
             existing.is_active = True
             existing.email_verified = True
+            # Ensure MFA is disabled for demo/seed accounts so login works without TOTP
+            existing.mfa_enabled = False
+            existing.mfa_secret = None
+            existing.mfa_backup_codes = None
             db.commit()
             logger.info("seed_user_synced", email=u['email'])
