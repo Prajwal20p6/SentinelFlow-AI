@@ -24,6 +24,7 @@ qrcode>=7.4.2
 pyotp>=2.9.0
 cryptography>=42.0.0
 enkryptai-sdk>=1.0.0
+tabulate>=0.9.0
 
 # ── ML & Data ──
 scikit-learn>=1.5.0
