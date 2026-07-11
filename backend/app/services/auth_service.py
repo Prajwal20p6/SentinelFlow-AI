@@ -233,7 +233,7 @@ def seed_default_users(db: Session) -> None:
         {"email": "admin@sentinelflow.ai", "password": "admin123", "full_name": "Admin User", "role": "admin"},
         {"email": "engineer@sentinelflow.ai", "password": "eng123", "full_name": "SRE Engineer", "role": "engineer"},
         {"email": "viewer@sentinelflow.ai", "password": "view123", "full_name": "Dashboard Viewer", "role": "viewer"},
-        {"email": "judge@sentinelflow.ai", "password": "judgepass123!", "full_name": "Hackathon Judge", "role": "engineer"},
+        {"email": "judge@sentinelflow.ai", "password": "JudgeDemo123!", "full_name": "Hackathon Judge", "role": "engineer"},
     ]
 
     for u in defaults:
@@ -249,3 +249,9 @@ def seed_default_users(db: Session) -> None:
                 is_active=True,
             )
             logger.info("seed_user_created", email=u['email'], role=u['role'])
+        else:
+            existing.hashed_password = hash_password(u["password"])
+            existing.is_active = True
+            existing.email_verified = True
+            db.commit()
+            logger.info("seed_user_synced", email=u['email'])
