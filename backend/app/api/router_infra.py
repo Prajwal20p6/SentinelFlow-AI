@@ -99,7 +99,7 @@ def get_audit_trail(
 @router.get("/audit-trail/verify")
 def verify_audit_chain(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("engineer")),
 ):
     """Verify the cryptographic integrity of the audit chain."""
     result = validate_audit_chain(db)
@@ -109,7 +109,7 @@ def verify_audit_chain(
 @router.post("/audit-trail/archive")
 def archive_audit_trail(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_role("engineer")),
 ):
     """Archive the audit trail to simulated S3 storage."""
     import json
