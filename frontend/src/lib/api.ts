@@ -1,6 +1,16 @@
 import { TokenResponse, User, Incident, IncidentDetail, AuditEntry, ClusterTopology, PromptTemplate, ObservabilitySummary, CommandResult } from '../types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+const getApiBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return 'https://backend-production-f51a.up.railway.app/api/v1';
+    }
+  }
+  return 'http://127.0.0.1:8000/api/v1';
+};
 
 class APIClient {
   private token: string | null = null;
@@ -52,7 +62,7 @@ class APIClient {
       headers.set('Content-Type', 'application/json');
     }
 
-    let response = await fetch(`${API_BASE_URL}${path}`, {
+    let response = await fetch(`${getApiBaseUrl()}${path}`, {
       ...options,
       headers,
     });

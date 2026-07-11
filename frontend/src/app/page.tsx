@@ -16,6 +16,19 @@ import {
   ObservabilitySummary,
   NavSection
 } from '../types';
+
+const getApiBaseUrl = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return 'https://backend-production-f51a.up.railway.app/api/v1';
+    }
+  }
+  return 'http://127.0.0.1:8000/api/v1';
+};
+
 import {
   Shield,
   Activity,
@@ -322,7 +335,7 @@ export default function Home() {
     setDemoResultMsg('');
     try {
       const token = localStorage.getItem('sf_token');
-      const resp = await fetch('http://127.0.0.1:8000/api/v1/demo/trigger', {
+      const resp = await fetch(`${getApiBaseUrl()}/demo/trigger`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -349,7 +362,7 @@ export default function Home() {
     setDemoResultMsg('');
     try {
       const token = localStorage.getItem('sf_token');
-      const resp = await fetch('http://127.0.0.1:8000/api/v1/demo/cleanup', {
+      const resp = await fetch(`${getApiBaseUrl()}/demo/cleanup`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -403,11 +416,11 @@ export default function Home() {
     const fetchData = async () => {
       try {
         // Health & Status
-        const health = await fetch('http://127.0.0.1:8000/health').then(r => r.json()).catch(() => null);
+        const health = await fetch(`${getApiBaseUrl().replace('/api/v1', '')}/health`).then(r => r.json()).catch(() => null);
         setServerHealth(health);
 
         // Circuit Breakers
-        const cbData = await fetch('http://127.0.0.1:8000/api/v1/ops/circuit-breakers', {
+        const cbData = await fetch(`${getApiBaseUrl()}/ops/circuit-breakers`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('sf_token')}` }
         }).then(r => r.json()).catch(() => ({}));
         setCircuitBreakers(cbData);
@@ -439,7 +452,7 @@ export default function Home() {
         setObsTraces(traces.traces);
 
         // Notifications
-        const notifs = await fetch('http://127.0.0.1:8000/api/v1/integrations/notifications', {
+        const notifs = await fetch(`${getApiBaseUrl()}/integrations/notifications`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('sf_token')}` }
         }).then(r => r.json()).catch(() => ({ notifications: [] }));
         setNotifications(notifs.notifications || []);
@@ -582,7 +595,7 @@ export default function Home() {
   const fetchKbDocuments = async () => {
     try {
       const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/knowledge/documents`, {
+      const res = await fetch(`${getApiBaseUrl()}/knowledge/documents`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -596,8 +609,8 @@ export default function Home() {
 
   const fetchGovConfig = async () => {
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
-      const rootUrl = apiBase.endsWith('/api/v1') ? apiBase.substring(0, apiBase.length - 7) : apiBase;
+      const apiBase = getApiBaseUrl();
+      const rootUrl = apiBase.replace('/api/v1', '');
       const token = localStorage.getItem('sf_token');
       const res = await fetch(`${rootUrl}/execution-config`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -640,8 +653,8 @@ export default function Home() {
     setGovLoading(true);
     setGovMsg('');
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
-      const rootUrl = apiBase.endsWith('/api/v1') ? apiBase.substring(0, apiBase.length - 7) : apiBase;
+      const apiBase = getApiBaseUrl();
+      const rootUrl = apiBase.replace('/api/v1', '');
       const token = localStorage.getItem('sf_token');
       const res = await fetch(`${rootUrl}/execution-config`, {
         method: 'POST',
@@ -690,7 +703,7 @@ export default function Home() {
     setMetricsLoading(true);
     try {
       const token = localStorage.getItem('sf_token');
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/ops/live-metrics`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -711,7 +724,7 @@ export default function Home() {
   const fetchPlaybookExecutions = async () => {
     try {
       const token = localStorage.getItem('sf_token');
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/ops/playbook-executions`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -736,7 +749,7 @@ export default function Home() {
     setPlaybookMsg('');
     try {
       const token = localStorage.getItem('sf_token');
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const apiBase = getApiBaseUrl();
       const res = await fetch(
         `${apiBase}/ops/playbook-executions?incident_id=${playbookTargetIncident}&playbook_name=${encodeURIComponent(playbookName)}`,
         { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
@@ -763,7 +776,7 @@ export default function Home() {
     setTimeout(async () => {
       try {
         const token = localStorage.getItem('sf_token');
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+        const apiBase = getApiBaseUrl();
         const res = await fetch(
           `${apiBase}/ops/playbook-executions/${execId}/advance?success=true&log_message=Step%20completed%20automatically`,
           { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
@@ -787,7 +800,7 @@ export default function Home() {
   const handleCancelExecution = async (execId: string) => {
     try {
       const token = localStorage.getItem('sf_token');
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+      const apiBase = getApiBaseUrl();
       const res = await fetch(`${apiBase}/ops/playbook-executions/${execId}/cancel`, {
         method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -816,7 +829,7 @@ export default function Home() {
       formData.append('tags', kbUploadTags);
 
       const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/knowledge/documents`, {
+      const res = await fetch(`${getApiBaseUrl()}/knowledge/documents`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -843,7 +856,7 @@ export default function Home() {
     }
     try {
       const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/knowledge/search?q=${encodeURIComponent(kbSearchQuery)}`, {
+      const res = await fetch(`${getApiBaseUrl()}/knowledge/search?q=${encodeURIComponent(kbSearchQuery)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -874,7 +887,7 @@ export default function Home() {
   const handleKbApprove = async (docId: number) => {
     try {
       const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/knowledge/documents/${docId}/approve`, {
+      const res = await fetch(`${getApiBaseUrl()}/knowledge/documents/${docId}/approve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -892,7 +905,7 @@ export default function Home() {
   const handleKbArchive = async (docId: number) => {
     try {
       const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/knowledge/documents/${docId}`, {
+      const res = await fetch(`${getApiBaseUrl()}/knowledge/documents/${docId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -910,7 +923,7 @@ export default function Home() {
     if (!selectedDoc) return;
     try {
       const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/knowledge/documents/${selectedDoc.id}`, {
+      const res = await fetch(`${getApiBaseUrl()}/knowledge/documents/${selectedDoc.id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1195,7 +1208,7 @@ export default function Home() {
     setSlackSimulatorMsg('');
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/integrations/slack/webhook', {
+      const res = await fetch(`${getApiBaseUrl()}/integrations/slack/webhook`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
