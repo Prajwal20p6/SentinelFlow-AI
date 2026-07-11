@@ -69,7 +69,7 @@ class APIClient {
 
     if (response.status === 401 && this.refreshToken && path !== '/auth/refresh' && path !== '/auth/login') {
       try {
-        const refreshResp = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        const refreshResp = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -81,7 +81,7 @@ class APIClient {
           this.setTokens(refreshData.access_token, refreshData.refresh_token);
           
           headers.set('Authorization', `Bearer ${refreshData.access_token}`);
-          response = await fetch(`${API_BASE_URL}${path}`, {
+          response = await fetch(`${getApiBaseUrl()}${path}`, {
             ...options,
             headers,
           });
