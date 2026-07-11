@@ -55,6 +55,27 @@ function getMockRca(incident_type: string) {
       evidence: ["Ingress traffic surge of 400%", "Botnet source IP identified in blocklists"],
       similar_incidents: ["INC-129"]
     };
+  } else if (type === "ERROR_RATE_SPIKE" || type === "ERROR_RATE") {
+    return {
+      root_cause: "Application error rate spiked. Regression error on latest deployment rollout version.",
+      confidence: 90,
+      evidence: ["HTTP 5xx errors reached 21.3%"],
+      similar_incidents: ["INC-445"]
+    };
+  } else if (type === "MEMORY_EXHAUSTION") {
+    return {
+      root_cause: "Memory usage approached limit. Potential memory leak identified on node processes.",
+      confidence: 92,
+      evidence: ["Memory consumption at 94%"],
+      similar_incidents: ["INC-712"]
+    };
+  } else if (type === "HIGH_LATENCY") {
+    return {
+      root_cause: "HTTP latency spike above warning limits. CoreDNS queries experiencing connection timeouts.",
+      confidence: 85,
+      evidence: ["Response time latency at 5200ms"],
+      similar_incidents: ["INC-199"]
+    };
   } else {
     return {
       root_cause: "Impossible travel login detected, database bulk download attempt from IP 99.88.77.66.",
@@ -95,6 +116,27 @@ function getMockThreat(incident_type: string) {
       iocs_found: ["185.120.45.99"],
       recommendations: ["Apply rate-limiting rules", "Enable cloudflare proxy shielding"]
     };
+  } else if (type === "ERROR_RATE_SPIKE" || type === "ERROR_RATE") {
+    return {
+      threat_level: "low",
+      risk_score: 15,
+      iocs_found: [],
+      recommendations: ["Rollback recent code changes"]
+    };
+  } else if (type === "MEMORY_EXHAUSTION") {
+    return {
+      threat_level: "low",
+      risk_score: 10,
+      iocs_found: [],
+      recommendations: ["Check memory dump profile"]
+    };
+  } else if (type === "HIGH_LATENCY") {
+    return {
+      threat_level: "low",
+      risk_score: 20,
+      iocs_found: [],
+      recommendations: ["Check CoreDNS logs"]
+    };
   } else {
     return {
       threat_level: "critical",
@@ -127,6 +169,27 @@ function getMockPriority(incident_type: string) {
       sla_minutes: 15,
       justification: "Active server brute force infiltration attempt",
       business_impact: { affected_users: 5000, risk: "CRITICAL" }
+    };
+  } else if (type === "ERROR_RATE_SPIKE" || type === "ERROR_RATE") {
+    return {
+      priority_level: "P1",
+      sla_minutes: 30,
+      justification: "Customer facing transaction processing errors escalated",
+      business_impact: { affected_users: 3200, risk: "HIGH" }
+    };
+  } else if (type === "MEMORY_EXHAUSTION") {
+    return {
+      priority_level: "P2",
+      sla_minutes: 60,
+      justification: "Pod memory pool warning limits reached",
+      business_impact: { affected_users: 500, risk: "MEDIUM" }
+    };
+  } else if (type === "HIGH_LATENCY") {
+    return {
+      priority_level: "P2",
+      sla_minutes: 60,
+      justification: "Response delay affecting client endpoints",
+      business_impact: { affected_users: 1200, risk: "MEDIUM" }
     };
   } else {
     return {
@@ -224,6 +287,54 @@ function getMockRemediation(incident_type: string) {
         }
       ],
       rollback_plan: "kubectl scale deployment ingress-gateway-abc1 --replicas=1"
+    };
+  } else if (type === "ERROR_RATE_SPIKE" || type === "ERROR_RATE") {
+    return {
+      recommended_option: {
+        action: "kubectl rollout undo deployment/mock-service",
+        success_probability: 92,
+        downtime_estimate: "10s"
+      },
+      ranked_options: [
+        {
+          action: "kubectl rollout undo deployment/mock-service",
+          success_probability: 92,
+          downtime_estimate: "10s"
+        }
+      ],
+      rollback_plan: "No rollback required for code reversion"
+    };
+  } else if (type === "MEMORY_EXHAUSTION") {
+    return {
+      recommended_option: {
+        action: "kubectl rollout restart deployment/mock-service",
+        success_probability: 90,
+        downtime_estimate: "10s"
+      },
+      ranked_options: [
+        {
+          action: "kubectl rollout restart deployment/mock-service",
+          success_probability: 90,
+          downtime_estimate: "10s"
+        }
+      ],
+      rollback_plan: "Pod will auto-recreate via ReplicaSet"
+    };
+  } else if (type === "HIGH_LATENCY") {
+    return {
+      recommended_option: {
+        action: "kubectl rollout restart deployment/coredns -n kube-system",
+        success_probability: 88,
+        downtime_estimate: "10s"
+      },
+      ranked_options: [
+        {
+          action: "kubectl rollout restart deployment/coredns -n kube-system",
+          success_probability: 88,
+          downtime_estimate: "10s"
+        }
+      ],
+      rollback_plan: "No rollback required for safe CoreDNS reset"
     };
   } else {
     return {
