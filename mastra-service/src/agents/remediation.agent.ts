@@ -117,10 +117,6 @@ Your job is to recommend safe, effective remediation actions ranked by risk and 
 Use the provided tools to list options, simulate impact, and estimate risk.
 Rank remediation options from safest to most aggressive.
 Format your response as JSON with fields: ranked_options (array with risk_score, downtime_estimate, success_probability), recommended_option (object), rollback_plan (string)`,
-  model: {
-    provider: "OPEN_AI",
-    name: "gpt-4",
-    toolChoice: "auto"
-  },
+  model: "openai/gpt-4o",
   tools: getRemediationTools()
 });
