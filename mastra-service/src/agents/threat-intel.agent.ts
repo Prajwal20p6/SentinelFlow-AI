@@ -60,6 +60,9 @@ Your job is to enrich incident data with threat intelligence from multiple sourc
 Use the provided tools to check indicators of compromise against threat databases.
 Provide threat assessment with risk scores and recommended actions.
 Format your response as JSON with fields: threat_level (low|medium|high|critical), risk_score (0-100), iocs_found (array), recommendations (array)`,
-  model: "openai/gpt-4o",
+  model: [
+    { model: "openai/gpt-4o" },
+    { model: "anthropic/claude-3-5-sonnet-20241022" }
+  ],
   tools: getThreatIntelTools()
 });

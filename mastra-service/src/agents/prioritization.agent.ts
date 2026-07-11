@@ -60,6 +60,9 @@ Your job is to prioritize incidents based on business impact, service criticalit
 Use the provided tools to assess business impact and service criticality.
 Assign priority levels (P0, P1, P2, P3, P4) with SLA targets.
 Format your response as JSON with fields: priority_level (P0-P4), sla_minutes (number), justification (string), business_impact (object)`,
-  model: "openai/gpt-4o",
+  model: [
+    { model: "openai/gpt-4o" },
+    { model: "anthropic/claude-3-5-sonnet-20241022" }
+  ],
   tools: getPrioritizationTools()
 });

@@ -81,6 +81,9 @@ Your job is to analyze metrics, logs, and incident history to identify the root 
 Use the provided tools to gather data about the service and metrics.
 Provide a structured RCA with confidence scores and supporting evidence.
 Format your response as JSON with fields: root_cause, confidence (0-100), evidence (array), similar_incidents (array)`,
-  model: "openai/gpt-4o",
+  model: [
+    { model: "openai/gpt-4o" },
+    { model: "anthropic/claude-3-5-sonnet-20241022" }
+  ],
   tools: getRCATools()
 });
