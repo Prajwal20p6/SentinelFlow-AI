@@ -18,9 +18,9 @@ Click the button below to deploy the entire SentinelFlow AI ecosystem (FastAPI, 
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/Prajwal20p6/SentinelFlow-AI)
 
-* **Production URL:** `https://sentinelflow-production.up.railway.app/`
-* **Backend API URL:** `https://sentinelflow-production.up.railway.app/api/v1`
-* **Health Check URL:** `https://sentinelflow-production.up.railway.app/health`
+* **Production URL:** `https://frontend-production-3b6e.up.railway.app/`
+* **Backend API URL:** `https://backend-production-f51a.up.railway.app/api/v1`
+* **Health Check URL:** `https://backend-production-f51a.up.railway.app/api/v1/health`
 
 ### 🔑 Demo Credentials
 * **Email:** `admin@sentinelflow.ai`

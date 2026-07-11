@@ -1,0 +1,48 @@
+# Ignore IDE files
+.vscode/
+.idea/
+
+# Ignore large media assets and documents
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.docx
+*.pdf
+*.zip
+
+# Ignore local databases and dynamic data
+*.db
+*.sqlite
+*.sqlite3
+data/
+test_sentinelflow.db
+
+# Ignore Node/Python cache and dependencies
+node_modules/
+.next/
+out/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Ignore temp folders and reports
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
+.railway-config-pull-*/
+.system_generated/
+.tempmediaStorage/
+walkthrough.md
+implementation_plan.md
+production_verification_audit.md
+framework_verification_report.md
+hackathon_presentation_document.md
+JUDGE_DEMO_GUIDE.md
+LOCAL_DEVELOPMENT_GUIDE.md
+DEPLOYMENT_FINAL_REPORT.md
+audit_results.md
+task.md

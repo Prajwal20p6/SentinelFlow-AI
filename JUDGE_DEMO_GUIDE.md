@@ -6,9 +6,9 @@ Welcome to the **SentinelFlow AI** interactive demo walkthrough! This guide outl
 
 ## 🔗 Live Application Access URLs
 
-* **Frontend Dashboard URL:** `https://sentinelflow-production.up.railway.app`
-* **Backend Gateway API URL:** `https://sentinelflow-production.up.railway.app/api/v1`
-* **Interactive Swagger UI Docs:** `https://sentinelflow-production.up.railway.app/docs`
+* **Frontend Dashboard URL:** `https://frontend-production-3b6e.up.railway.app`
+* **Backend Gateway API URL:** `https://backend-production-f51a.up.railway.app/api/v1`
+* **Interactive Swagger UI Docs:** `https://backend-production-f51a.up.railway.app/docs`
 
 ---
 
@@ -27,7 +27,7 @@ To access the reactive operational dashboard without setup, log in using:
 Follow these steps to experience the full incident lifecycle:
 
 ### Step 1: Access the Dashboard
-1. Open the [Frontend Dashboard](https://sentinelflow-production.up.railway.app) in your web browser.
+1. Open the [Frontend Dashboard](https://frontend-production-3b6e.up.railway.app) in your web browser.
 2. Enter the Judge credentials from the section above and complete the login sequence.
 3. Observe the cyberpunk-themed **Cyber Security Operations Dashboard** displaying active clusters, telemetry indicators, and incident queues.
 
