@@ -2825,8 +2825,37 @@ export default function Home() {
                               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 pt-2">
                                 {steps.map((st, index) => {
                                   const stepIndex = index + 1;
-                                  const isCompleted = stepIndex < currentStepNum || (st.name === "EXECUTE_REMEDIATION" && selectedIncident.status === "EXECUTED");
-                                  const isCurrent = stepIndex === currentStepNum;
+                                  
+                                  let isCompleted = false;
+                                  let isCurrent = false;
+                                  
+                                  if (currentStepNum > 0) {
+                                    isCompleted = stepIndex < currentStepNum || (st.name === "EXECUTE_REMEDIATION" && selectedIncident.status === "EXECUTED");
+                                    isCurrent = stepIndex === currentStepNum;
+                                  } else {
+                                    const stat = (selectedIncident.status || "").toUpperCase();
+                                    const isClosed = selectedIncident.resolved_at || stat === "EXECUTED" || stat === "BYPASSED" || stat === "CLOSED" || stat === "RESOLVED";
+                                    
+                                    if (isClosed) {
+                                      isCompleted = true;
+                                      isCurrent = false;
+                                    } else if (stat === "REJECTED") {
+                                      isCompleted = stepIndex < 8;
+                                      isCurrent = false;
+                                    } else if (stat === "APPROVED" || stat === "EXECUTING") {
+                                      isCompleted = stepIndex < 8;
+                                      isCurrent = stepIndex === 8;
+                                    } else if (stat === "PENDING_APPROVAL") {
+                                      isCompleted = stepIndex < 7;
+                                      isCurrent = stepIndex === 7;
+                                    } else if (stat === "ANALYZING") {
+                                      isCompleted = stepIndex < 6;
+                                      isCurrent = stepIndex === 6;
+                                    } else {
+                                      isCompleted = stepIndex < 2;
+                                      isCurrent = stepIndex === 2;
+                                    }
+                                  }
                                   
                                   return (
                                     <div 
