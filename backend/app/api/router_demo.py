@@ -82,7 +82,7 @@ SCENARIOS = {
         "pod_name": "api-gateway-7d8f6c5b9"
     },
     "NETWORK_OUTAGE": {
-        "anomaly_type": "HIGH_LATENCY",
+        "anomaly_type": "NETWORK_OUTAGE",
         "description": "Network partition detected between availability zones. Cross-AZ traffic dropping packets at 12%. Inter-service latency elevated to 3400ms.",
         "severity": "CRITICAL",
         "node_name": "node-03",

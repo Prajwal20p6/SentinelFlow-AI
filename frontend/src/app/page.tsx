@@ -252,7 +252,9 @@ export default function Home() {
 
     if (mastraSelectedId && data.incident_id === mastraSelectedId) {
       setMastraExecution((prev: any) => {
-        if (!prev) return prev;
+        if (!prev) {
+          return buildPlaceholderExecution(data.incident_id, data.anomaly_type || 'UNKNOWN');
+        }
         const pipeline = prev.pipeline.map((s: any) =>
           s.step_key === data.step_name
             ? { ...s, status: data.step_status === 'in_progress' ? 'running' : data.step_status, duration_seconds: data.duration_seconds || s.duration_seconds }
@@ -261,7 +263,9 @@ export default function Home() {
         const currentStep = data.step_number || prev.workflow.current_step;
         return {
           ...prev,
+          active: true,
           workflow: { ...prev.workflow, current_step: currentStep },
+          incident: { ...prev.incident, id: data.incident_id || prev.incident.id, metric_type: data.anomaly_type || prev.incident.metric_type, severity: data.severity || prev.incident.severity, status: 'EXECUTING' },
           agent: { name: data.agent_name || prev.agent.name, sub_type: data.agent_sub_type || prev.agent.sub_type, domain: data.agent_domain || prev.agent.domain },
           ai_provider: data.ai_provider || prev.ai_provider,
           confidence: data.confidence || prev.confidence,
@@ -368,7 +372,7 @@ export default function Home() {
   const [playbookMsg, setPlaybookMsg] = useState('');
 
 
-  const triggerDemoScenario = async (scenario: string) => {
+  const triggerDemoScenario = async (scenario: string): Promise<number | null> => {
     setDemoLoading(true);
     setDemoResultMsg('');
     try {
@@ -384,11 +388,14 @@ export default function Home() {
       const data = await resp.json();
       if (resp.ok) {
         setDemoResultMsg(`Success: Demo scenario ${scenario} triggered! Generated Incident #${data.incident_id}`);
+        return data.incident_id as number;
       } else {
         setDemoResultMsg(`Error: ${data.detail || 'Trigger failed'}`);
+        return null;
       }
     } catch (err: any) {
       setDemoResultMsg(`Network Error: ${err.message || err}`);
+      return null;
     } finally {
       setDemoLoading(false);
     }
@@ -432,6 +439,48 @@ export default function Home() {
   const [mastraExecution, setMastraExecution] = useState<any>(null);
   const [mastraSelectedId, setMastraSelectedId] = useState<number | null>(null);
   const [mastraLoading, setMastraLoading] = useState(false);
+
+  const STEP_KEYS = ['DETECT_ANOMALY','RETRIEVE_CONTEXT','RETRIEVE_RUNBOOKS','PLAN_REMEDIATION','CONTRADICTION_CHECK','VALIDATE','APPROVE_DECISION','EXECUTE_REMEDIATION'];
+  const STEP_LABELS: Record<string, string> = {
+    DETECT_ANOMALY: 'Anomaly Detection & Agent Selection',
+    RETRIEVE_CONTEXT: 'CRISPE Prompt Template Lookup',
+    RETRIEVE_RUNBOOKS: 'RAG Knowledge Retrieval',
+    PLAN_REMEDIATION: 'LLM Multi-Agent Reasoning',
+    CONTRADICTION_CHECK: 'Mastra Contradiction Analysis',
+    VALIDATE: 'Enkrypt AI Safety Validation',
+    APPROVE_DECISION: 'Confidence Gate & Governance',
+    EXECUTE_REMEDIATION: 'Autonomous Remediation Execution',
+  };
+
+  const buildPlaceholderExecution = (incidentId: number, scenario: string) => ({
+    active: true,
+    incident: {
+      id: incidentId,
+      title: `${scenario.replace(/_/g, ' ')}`,
+      metric_type: scenario,
+      severity: scenario.includes('UNAUTHORIZED') || scenario.includes('DDOS') || scenario.includes('PHISHING') || scenario.includes('DATA_BREACH') || scenario.includes('ERROR_RATE') ? 'CRITICAL' : 'WARNING',
+      status: 'EXECUTING',
+    },
+    workflow: {
+      name: 'IncidentResponseWorkflow',
+      is_completed: false,
+      current_step: 1,
+      total_steps: 8,
+    },
+    agent: { name: 'Pending...', sub_type: '', domain: '' },
+    ai_provider: 'pending',
+    confidence: 0,
+    safety: { status: 'Pending', risk_score: 0 },
+    pipeline: STEP_KEYS.map((key, i) => ({
+      step_number: i + 1,
+      step_key: key,
+      label: STEP_LABELS[key],
+      status: i === 0 ? 'running' : 'pending',
+      duration_seconds: 0,
+      error_message: null,
+    })),
+    timeline_events: [],
+  });
 
   // ── References ───────────────────────────────────────────────
   const logTerminalEndRef = useRef<HTMLDivElement>(null);
@@ -5553,18 +5602,31 @@ export default function Home() {
               <div className="card p-4">
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Quick Incident Triggers</h4>
                 <div className="flex flex-wrap gap-2">
-                  {['CPU_SPIKE', 'MEMORY_EXHAUSTION', 'UNAUTHORIZED_ACCESS', 'DISK_FULL', 'HIGH_LATENCY', 'ERROR_RATE_SPIKE'].map(type => (
+                  {['CPU_SPIKE', 'MEMORY_EXHAUSTION', 'UNAUTHORIZED_ACCESS', 'DISK_FULL', 'HIGH_LATENCY', 'ERROR_RATE_SPIKE', 'DDOS_ATTACK', 'NETWORK_OUTAGE'].map(type => (
                     <button
                       key={type}
                       onClick={async () => {
                         try {
-                          await triggerDemoScenario(type);
+                          setMastraEvents([]);
+                          const incId = await triggerDemoScenario(type);
+                          if (incId) {
+                            setMastraSelectedId(incId);
+                            setMastraExecution(buildPlaceholderExecution(incId, type));
+                          }
                           setTimeout(async () => {
-                            const res = await api.getActiveExecution();
-                            setMastraExecution(res);
-                            setMastraSelectedId(res.incident?.id || null);
-                            setMastraEvents([]);
-                          }, 1500);
+                            try {
+                              const res = await api.getActiveExecution();
+                              if (res && res.active) {
+                                setMastraExecution(res);
+                                setMastraSelectedId(res.incident?.id || incId);
+                              } else if (incId) {
+                                try {
+                                  const res2 = await api.getIncidentExecution(incId);
+                                  setMastraExecution(res2);
+                                } catch {}
+                              }
+                            } catch {}
+                          }, 2000);
                         } catch (e) { console.error(e); }
                       }}
                       className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-slate-300 hover:bg-[#00ff88]/10 hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all"

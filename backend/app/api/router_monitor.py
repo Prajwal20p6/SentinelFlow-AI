@@ -4,6 +4,7 @@ Provides REST endpoints for the Live Mastra Execution Monitor dashboard.
 """
 
 import json
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -21,10 +22,16 @@ def get_active_execution(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Get the most recently active incident with full execution state."""
+    """Get the most recently active incident with full execution state.
+    Includes active incidents OR recently completed ones (last 120s)."""
+    active_statuses = ["DETECTED", "ANALYZING", "PENDING_APPROVAL", "APPROVED", "EXECUTING", "BYPASSED"]
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=120)
     incident = (
         db.query(Incident)
-        .filter(Incident.status.in_(["DETECTED", "ANALYZING", "PENDING_APPROVAL", "APPROVED", "EXECUTING"]))
+        .filter(
+            (Incident.status.in_(active_statuses)) |
+            (Incident.created_at >= cutoff)
+        )
         .order_by(Incident.created_at.desc())
         .first()
     )

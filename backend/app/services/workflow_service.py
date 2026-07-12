@@ -120,6 +120,9 @@ AGENT_ROUTING = {
     "ERROR_RATE_SPIKE":     {"agent": "RemediationAgent",           "sub_type": "reliability",   "domain": "application"},
     "UNAUTHORIZED_ACCESS":  {"agent": "ThreatIntelAgent",           "sub_type": "security",      "domain": "security"},
     "NETWORK_OUTAGE":       {"agent": "ThreatIntelAgent",           "sub_type": "network",       "domain": "infrastructure"},
+    "PHISHING_ATTACK":      {"agent": "ThreatIntelAgent",           "sub_type": "security",      "domain": "identity"},
+    "DDOS_ATTACK":          {"agent": "RemediationAgent",           "sub_type": "network",       "domain": "infrastructure"},
+    "DATA_BREACH":          {"agent": "ThreatIntelAgent",           "sub_type": "security",      "domain": "data-protection"},
 }
 
 DEFAULT_AGENT = {"agent": "PrioritizationAgent", "sub_type": "general", "domain": "operations"}
@@ -271,6 +274,7 @@ def run_incident_workflow(
         except Exception:
             pass
             
+        time.sleep(0.35)
         return s
 
     def _complete_step(step: MastraWorkflowStep, next_state: str):
@@ -359,6 +363,8 @@ def run_incident_workflow(
                 pass
         except Exception:
             pass
+
+        time.sleep(0.25)
 
     def _fail_step(step: MastraWorkflowStep, error_msg: str):
         step.status = "failed"
