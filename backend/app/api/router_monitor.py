@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
-from ..core.security import get_current_user
+from ..middleware.auth import get_current_user
 from ..models.models import (
     Incident, MastraWorkflowState, MastraWorkflowStep, TimelineEvent,
 )

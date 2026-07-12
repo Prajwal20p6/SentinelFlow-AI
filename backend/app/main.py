@@ -6,7 +6,7 @@ Entry point that wires up all routers, middleware, database init, and startup ev
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -16,7 +16,6 @@ from .schemas.schemas import ErrorResponse, ErrorDetail
 from .core.config import get_settings
 from .core.database import Base, engine, SessionLocal, init_db
 from .core.vector_db import init_qdrant_collections
-from .core.websocket import ws_manager
 from .core.observability import instrument_app, logger
 from .middleware.gateway import APIGatewayMiddleware
 from .api.router_auth import router as auth_router
@@ -110,6 +109,10 @@ async def lifespan(app: FastAPI):
 
     metrics_task = asyncio.create_task(_live_metrics_broadcast_loop())
     logger.info("live_metrics_broadcast_started", interval_seconds=5)
+
+    # Capture main event loop for WebSocket broadcast from sync threads
+    from .websocket.manager import set_main_event_loop
+    set_main_event_loop(asyncio.get_running_loop())
 
     yield
 
@@ -244,20 +247,6 @@ app.include_router(monitor_router, prefix=settings.API_V1_PREFIX)
 app.include_router(ops_router, prefix=settings.API_V1_PREFIX)
 
 
-# ── WebSocket Endpoint ──────────────────────────────────────
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time dashboard updates."""
-    await ws_manager.connect(websocket)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            # Echo back for heartbeat/ping
-            await ws_manager.send_to(websocket, "pong", {"received": data})
-    except WebSocketDisconnect:
-        ws_manager.disconnect(websocket)
-
-
 # ── Health Check ─────────────────────────────────────────────
 @app.get("/", tags=["Health"])
 def health_check():
@@ -275,6 +264,7 @@ def health_check():
 def detailed_health():
     """Detailed health check with service status."""
     from .core.redis_streams import REDIS_AVAILABLE
+    from .websocket.manager import ws_connection_manager
     return {
         "status": "healthy",
         "services": {
@@ -282,7 +272,7 @@ def detailed_health():
             "redis": "connected" if REDIS_AVAILABLE else "fallback (in-memory)",
             "qdrant": "connected (local)",
             "simulator": "running" if settings.FF_DEMO_MODE else "disabled",
-            "websocket": f"{len(ws_manager.active_connections)} clients",
+            "websocket": f"{len(ws_connection_manager.active_sockets)} clients",
         },
     }
 

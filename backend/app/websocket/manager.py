@@ -235,26 +235,60 @@ class ConnectionManager:
 # Instantiate the manager
 ws_connection_manager = ConnectionManager()
 
+# Store the main uvicorn event loop reference (set during lifespan startup)
+_main_event_loop = None
 
-# Register pub/sub listener callback
+
+def set_main_event_loop(loop) -> None:
+    """Called during FastAPI lifespan to capture the running event loop."""
+    global _main_event_loop
+    _main_event_loop = loop
+    logger.info("WebSocket broadcast: main event loop captured")
+
+
+BROADCAST_TO_ALL_TYPES = {
+    "LiveMetricsUpdate", "MastraExecution", "MetricsUpdate", "AgentActivity",
+}
+
+
 def pubsub_broadcast_handler(msg_type: str, data: Dict[str, Any]) -> None:
     """Forward pub/sub events to the running event loop of FastAPI if active."""
     import asyncio
-    
+
     incident_id = data.get("incident_id")
     user_id = data.get("user_id")
 
+    if msg_type in BROADCAST_TO_ALL_TYPES:
+        coro = ws_connection_manager.broadcast_all_local(msg_type, data)
+    elif incident_id is not None:
+        coro = ws_connection_manager.broadcast_incident_local(int(incident_id), msg_type, data)
+    elif user_id is not None:
+        coro = ws_connection_manager.send_to_user_local(int(user_id), msg_type, data)
+    else:
+        coro = ws_connection_manager.broadcast_all_local(msg_type, data)
+
+    # 1. Try to schedule on the currently running event loop (we're inside async context)
     try:
         loop = asyncio.get_running_loop()
-        if loop.is_running():
-            if incident_id is not None:
-                loop.create_task(ws_connection_manager.broadcast_incident_local(int(incident_id), msg_type, data))
-            elif user_id is not None:
-                loop.create_task(ws_connection_manager.send_to_user_local(int(user_id), msg_type, data))
-            else:
-                loop.create_task(ws_connection_manager.broadcast_all_local(msg_type, data))
+        loop.create_task(coro)
+        return
     except RuntimeError:
-        # No running event loop - meaning no active WebSocket connections exist
+        pass
+
+    # 2. Fallback: use the stored main uvicorn event loop (we're in a sync thread)
+    if _main_event_loop is not None and _main_event_loop.is_running():
+        try:
+            asyncio.run_coroutine_threadsafe(coro, _main_event_loop)
+            return
+        except Exception:
+            pass
+
+    # 3. Last resort: try get_event_loop (may not be uvicorn's loop)
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.run_coroutine_threadsafe(coro, loop)
+    except RuntimeError:
         pass
 
 
