@@ -361,6 +361,14 @@ class APIClient {
   async getAttackGraph(incidentId: number): Promise<any> {
     return this.request(`/incidents/${incidentId}/attack-graph`);
   }
+
+  async getPostmortem(incidentId: number): Promise<any> {
+    return this.request(`/incidents/${incidentId}/postmortem`);
+  }
+
+  async generatePostmortem(incidentId: number): Promise<any> {
+    return this.request(`/incidents/${incidentId}/postmortem/generate`, { method: 'POST' });
+  }
 }
 
 export const api = new APIClient();

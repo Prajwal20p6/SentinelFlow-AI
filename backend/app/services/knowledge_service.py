@@ -84,6 +84,9 @@ class KnowledgeBaseService:
         chunk_size = 500
         chunks = [content[i:i + chunk_size] for i in range(0, len(content), chunk_size)]
         
+        if not chunks:
+            chunks = [content] if content else ["Empty document"]
+        
         for idx, chunk in enumerate(chunks):
             vector = get_text_embedding(chunk)
             point_id = doc_id * 1000 + idx # Ensure unique keys per chunk
@@ -98,14 +101,23 @@ class KnowledgeBaseService:
                 "source": "knowledge-upload"
             }
 
-            # Upsert into fallbacks
+            # Upsert into fallbacks (always succeed even without Qdrant)
             in_memory_store.upsert(point_id, vector, payload)
-            chroma_store.upsert(point_id, vector, payload)
-            faiss_store.upsert(point_id, vector, payload)
-
-            # Upsert Qdrant Client
             try:
-                qdrant_client.upsert(
+                chroma_store.upsert(point_id, vector, payload)
+            except Exception:
+                pass
+            try:
+                faiss_store.upsert(point_id, vector, payload)
+            except Exception:
+                pass
+
+            # Upsert Qdrant Client with graceful fallback
+            try:
+                from ..services.circuit_breaker_service import CircuitBreakerService
+                CircuitBreakerService.call(
+                    "qdrant",
+                    qdrant_client.upsert,
                     collection_name=settings.QDRANT_COLLECTION,
                     points=[
                         PointStruct(
@@ -116,7 +128,7 @@ class KnowledgeBaseService:
                     ]
                 )
             except Exception as e:
-                logger.warning("qdrant_knowledge_upsert_failed", doc_id=doc_id, error=str(e))
+                logger.warning("qdrant_knowledge_upsert_failed_fallback_used", doc_id=doc_id, chunk=idx, error=str(e))
 
     @staticmethod
     def create_document(

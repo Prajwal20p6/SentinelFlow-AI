@@ -27,7 +27,7 @@ Refactored all raw `print()` statements inside core Python services (e.g., `main
 - Standardizes log formatting for cloud logging collectors (e.g. Google Cloud Logging, AWS CloudWatch).
 - Separates log contexts (e.g. request metadata, correlation IDs) cleanly from stdout streams.
 
-### 2.2 JWT Passphrase Mitigation
+### 2.2 JWT Password Mitigation
 Mitigated the insecure JWT token key length warnings inside test fixtures (`backend/tests/conftest.py`) by setting `SECRET_KEY` to a strong, high-entropy 32-byte hash. This ensures compatibility with modern PyJWT security standards and eliminates runtime library initialization warnings.
 
 ### 2.3 Next.js Client API Prefix Alignment
@@ -73,7 +73,7 @@ The Jest test suite passes without any regressions:
 The entire SentinelFlow AI dashboard application was validated using an autonomous browser subagent. The subagent logged in with the seeded admin credentials, validated WebSocket connections, and traversed all primary layouts.
 
 ### 4.1 Verified Workflow Steps
-1. **Login Flow:** Verified email pre-population and submitted passphrase `admin123` for `admin@sentinelflow.ai`. Successful JWT auth token pairing and user profile persistence in localStorage.
+1. **Login Flow:** Verified email pre-population and submitted password `admin123` for `admin@sentinelflow.ai`. Successful JWT auth token pairing and user profile persistence in localStorage.
 2. **Cyber Dashboard:** Verified metrics counters (total decisions, active anomalies, latency averages) populate dynamically.
 3. **Active Incidents tab:** Navigated and selected incident cards. The workflow timeline renders securely without crashing.
 4. **Cluster Topology tab:** Node and container statuses load cleanly with visual state grids.

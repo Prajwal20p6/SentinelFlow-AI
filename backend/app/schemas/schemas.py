@@ -5,7 +5,7 @@ Covers all API endpoints with strict validation.
 
 from datetime import datetime
 from typing import Optional, Any
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 
 
 # ══════════════════════════════════════════════════════════════
@@ -14,7 +14,7 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 class LoginRequest(BaseModel):
     email: str = Field(..., description="User email address")
-    password: str = Field(..., min_length=4, description="User password")
+    password: str = Field(..., min_length=6, description="User password")
 
 
 class TokenResponse(BaseModel):
@@ -44,8 +44,16 @@ class RegisterRequest(BaseModel):
     email: str
     password: str = Field(..., min_length=6)
     full_name: str = ""
-    role: str = "engineer"
+    role: str = Field(default="engineer")
     organization_id: Optional[str] = None
+
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v):
+        allowed = {"engineer", "viewer", "executive"}
+        if v not in allowed:
+            raise ValueError(f"Invalid role. Allowed: {', '.join(sorted(allowed))}")
+        return v
 
 
 class UserResponse(BaseModel):

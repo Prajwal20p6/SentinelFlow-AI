@@ -59,6 +59,34 @@ SCENARIOS = {
         "severity": "CRITICAL",
         "node_name": "node-03",
         "pod_name": "database-primary-z5r2"
+    },
+    "MEMORY_EXHAUSTION": {
+        "anomaly_type": "MEMORY_EXHAUSTION",
+        "description": "Memory usage at 94% approaching OOM limit on payment-gateway pod. Potential memory leak in Node.js process heap. GC pause times elevated.",
+        "severity": "WARNING",
+        "node_name": "node-02",
+        "pod_name": "payment-gateway-3c8a7b2d1"
+    },
+    "HIGH_LATENCY": {
+        "anomaly_type": "HIGH_LATENCY",
+        "description": "HTTP p99 latency spiked to 5200ms across API gateway. CoreDNS query timeout rate at 28%. Network hop count elevated to 17.",
+        "severity": "WARNING",
+        "node_name": "node-01",
+        "pod_name": "api-gateway-7d8f6c5b9"
+    },
+    "ERROR_RATE_SPIKE": {
+        "anomaly_type": "ERROR_RATE_SPIKE",
+        "description": "Application HTTP 5xx error rate spiked to 21.3%. Regression detected in deployment v2.14.3 rollout. Affected endpoints: /api/v1/payments, /api/v1/orders.",
+        "severity": "CRITICAL",
+        "node_name": "node-02",
+        "pod_name": "api-gateway-7d8f6c5b9"
+    },
+    "NETWORK_OUTAGE": {
+        "anomaly_type": "HIGH_LATENCY",
+        "description": "Network partition detected between availability zones. Cross-AZ traffic dropping packets at 12%. Inter-service latency elevated to 3400ms.",
+        "severity": "CRITICAL",
+        "node_name": "node-03",
+        "pod_name": "service-mesh-proxy-2a9e"
     }
 }
 
@@ -71,7 +99,8 @@ def trigger_scenario(
 ):
     """
     Trigger a specific failing scenario synchronously.
-    Available Scenarios: CPU_SPIKE, DISK_FULL, UNAUTHORIZED_ACCESS.
+    Available Scenarios: CPU_SPIKE, DISK_FULL, UNAUTHORIZED_ACCESS, PHISHING_ATTACK,
+    DDOS_ATTACK, DATA_BREACH, MEMORY_EXHAUSTION, HIGH_LATENCY, ERROR_RATE_SPIKE, NETWORK_OUTAGE.
     """
     scenario_key = body.get("scenario", "CPU_SPIKE").upper()
     if scenario_key not in SCENARIOS:
@@ -95,16 +124,49 @@ def trigger_scenario(
         
         incident_id = incident.id
         
+        # Broadcast incident creation via WebSocket
+        try:
+            from ..services.websocket_service import broadcast_incident_update
+            broadcast_incident_update(
+                incident_id=incident_id,
+                status=incident.status or "DETECTED",
+                severity=incident.severity or "WARNING",
+                service=sc_config["pod_name"]
+            )
+        except Exception:
+            pass
+        
+        # Annotate metrics timeline
+        try:
+            from ..services.metrics_dashboard_service import MetricsDashboardService
+            MetricsDashboardService.add_annotation(
+                event_type="INCIDENT_DETECTED",
+                label=f"Demo: {scenario_key} on {sc_config['node_name']}/{sc_config['pod_name']}",
+                severity=incident.severity or "WARNING",
+                incident_id=incident_id,
+            )
+        except Exception:
+            pass
+        
         return {
             "status": "success",
             "scenario": scenario_key,
             "incident_id": incident_id,
             "status_routed": incident.status if incident else "DETECTED",
             "suggested_action": incident.suggested_action if incident else None,
-            "message": f"Demo failure scenario '{scenario_key}' triggered successfully."
+            "confidence_score": incident.confidence_score if incident else None,
+            "message": f"Demo failure scenario '{scenario_key}' triggered successfully. Incident #{incident_id} created."
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to trigger scenario: {e}")
+        import traceback
+        return {
+            "status": "partial",
+            "scenario": scenario_key,
+            "message": f"Scenario trigger encountered an error: {str(e)[:200]}. Check backend logs.",
+            "error": str(e)
+        }
 
 
 @router.post("/cleanup")

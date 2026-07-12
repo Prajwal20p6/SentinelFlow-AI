@@ -273,6 +273,8 @@ else:
 
 
 # ── Collection Management ────────────────────────────────────
+INCIDENT_COLLECTION = "incidents"
+
 def init_qdrant_collections() -> None:
     """Initialize collections and seed runbooks, including agent memory collections."""
     try:
@@ -313,6 +315,19 @@ def init_qdrant_collections() -> None:
                 logger.info("qdrant_memory_collection_created", collection=col)
             else:
                 logger.info("qdrant_memory_collection_exists", collection=col)
+
+        # 3. Incidents Collection — for vector similarity search of past incidents
+        if INCIDENT_COLLECTION not in existing_names:
+            qdrant_client.create_collection(
+                collection_name=INCIDENT_COLLECTION,
+                vectors_config=VectorParams(
+                    size=settings.QDRANT_VECTOR_SIZE,
+                    distance=Distance.COSINE,
+                ),
+            )
+            logger.info("qdrant_incidents_collection_created", collection=INCIDENT_COLLECTION)
+        else:
+            logger.info("qdrant_incidents_collection_exists", collection=INCIDENT_COLLECTION)
 
     except Exception as e:
         logger.warning("qdrant_init_error", error=str(e))
@@ -533,3 +548,164 @@ def add_resolution_to_qdrant(
         logger.info("qdrant_resolution_synced", incident_id=incident_id)
     except Exception as e:
         logger.warning("qdrant_resolution_sync_failed", incident_id=incident_id, error=str(e))
+
+
+# ── Incident Vector Embeddings ──────────────────────────────
+def store_incident_embedding(
+    incident_id: int,
+    title: str,
+    metric_type: str,
+    description: str,
+    severity: str,
+    action_taken: str,
+    resolution_status: str,
+) -> None:
+    """Store an incident's embedding in Qdrant for future similarity search."""
+    search_text = f"{metric_type} {title} {description} {action_taken}"
+    vector = get_text_embedding(search_text)
+    point_id = incident_id + 50000
+
+    payload = {
+        "id": point_id,
+        "incident_id": incident_id,
+        "title": title,
+        "metric_type": metric_type,
+        "severity": severity,
+        "resolution_status": resolution_status,
+        "content": description[:500],
+        "action_taken": action_taken[:300],
+        "tags": [metric_type.lower()],
+        "category": metric_type.lower(),
+    }
+
+    in_memory_store.upsert(point_id, vector, payload)
+    chroma_store.upsert(point_id, vector, payload)
+    faiss_store.upsert(point_id, vector, payload)
+
+    try:
+        from ..services.circuit_breaker_service import CircuitBreakerService
+        CircuitBreakerService.call(
+            "qdrant",
+            qdrant_client.upsert,
+            collection_name=INCIDENT_COLLECTION,
+            points=[
+                PointStruct(
+                    id=point_id,
+                    vector=vector,
+                    payload=payload,
+                )
+            ],
+        )
+        logger.info("qdrant_incident_embedding_stored", incident_id=incident_id)
+    except Exception as e:
+        logger.warning("qdrant_incident_embedding_store_failed", incident_id=incident_id, error=str(e))
+
+
+def search_similar_incidents(
+    query: str,
+    exclude_incident_id: int = 0,
+    limit: int = 5,
+    score_threshold: float = 0.25,
+) -> list[dict]:
+    """Search for similar past incidents using vector similarity with automatic fallback cascade."""
+    query_vector = get_text_embedding(query)
+
+    # ── 1. Try Qdrant ────────────────────────────────────────
+    try:
+        search_filter = Filter(
+            must_not=[
+                FieldCondition(
+                    key="incident_id",
+                    match=MatchValue(value=exclude_incident_id),
+                )
+            ]
+        ) if exclude_incident_id else None
+
+        from ..services.circuit_breaker_service import CircuitBreakerService
+        results = CircuitBreakerService.call(
+            "qdrant",
+            qdrant_client.query_points,
+            collection_name=INCIDENT_COLLECTION,
+            query=query_vector,
+            limit=limit,
+            query_filter=search_filter,
+            score_threshold=score_threshold,
+        )
+        if results and results.points:
+            return [
+                {
+                    "incident_id": hit.payload.get("incident_id", hit.id),
+                    "title": hit.payload.get("title", ""),
+                    "severity": hit.payload.get("severity", ""),
+                    "metric_type": hit.payload.get("metric_type", ""),
+                    "resolution_status": hit.payload.get("resolution_status", ""),
+                    "action_taken": hit.payload.get("action_taken", ""),
+                    "score": hit.score,
+                    "source": "qdrant",
+                }
+                for hit in results.points
+            ]
+    except Exception as e:
+        logger.warning("qdrant_incident_search_failed", error=str(e))
+
+    # ── 2. Try ChromaDB Fallback ─────────────────────────────
+    if CHROMA_AVAILABLE:
+        try:
+            hits = chroma_store.search(query_vector, limit)
+            if hits:
+                return [
+                    {
+                        "incident_id": h.get("id", 0) - 50000,
+                        "title": h.get("title", ""),
+                        "severity": h.get("severity", ""),
+                        "metric_type": h.get("category", ""),
+                        "resolution_status": h.get("content", "")[:100],
+                        "action_taken": h.get("content", "")[:200],
+                        "score": h.get("score", 0.0),
+                        "source": "chromadb",
+                    }
+                    for h in hits
+                ]
+        except Exception as e:
+            logger.warning("chromadb_incident_search_failed", error=str(e))
+
+    # ── 3. Try FAISS Fallback ────────────────────────────────
+    if FAISS_AVAILABLE:
+        try:
+            hits = faiss_store.search(query_vector, limit)
+            if hits:
+                return [
+                    {
+                        "incident_id": h.get("id", 0) - 50000,
+                        "title": h.get("title", ""),
+                        "severity": h.get("severity", ""),
+                        "metric_type": h.get("category", ""),
+                        "resolution_status": h.get("content", "")[:100],
+                        "action_taken": h.get("content", "")[:200],
+                        "score": h.get("score", 0.0),
+                        "source": "faiss",
+                    }
+                    for h in hits
+                ]
+        except Exception as e:
+            logger.warning("faiss_incident_search_failed", error=str(e))
+
+    # ── 4. In-Memory Fallback ────────────────────────────────
+    try:
+        hits = in_memory_store.search(query_vector, limit)
+        return [
+            {
+                "incident_id": h.get("id", 0) - 50000,
+                "title": h.get("title", ""),
+                "severity": h.get("severity", ""),
+                "metric_type": h.get("category", ""),
+                "resolution_status": h.get("content", "")[:100],
+                "action_taken": h.get("content", "")[:200],
+                "score": h.get("score", 0.0),
+                "source": "inmemory",
+            }
+            for h in hits
+        ]
+    except Exception as e:
+        logger.error("all_incident_search_fallbacks_failed", error=str(e))
+        return []

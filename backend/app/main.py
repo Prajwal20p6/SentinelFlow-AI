@@ -239,7 +239,6 @@ app.include_router(demo_router, prefix=settings.API_V1_PREFIX)
 app.include_router(websocket_router, prefix=settings.API_V1_PREFIX)
 app.include_router(knowledge_router, prefix=settings.API_V1_PREFIX)
 app.include_router(security_router, prefix=settings.API_V1_PREFIX)
-app.include_router(ops_router)
 app.include_router(ops_router, prefix=settings.API_V1_PREFIX)
 
 

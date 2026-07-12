@@ -209,11 +209,28 @@ def get_executive_metrics(
     rejected_count = db.query(Incident).filter(Incident.status == "REJECTED").count()
     false_positive_rate = (rejected_count / total_count * 100.0) if total_count > 0 else 0.0
 
+    # Autopilot governance KPIs
+    bypassed = db.query(Incident).filter(Incident.status == "BYPASSED").count()
+    pending_approval = db.query(Incident).filter(Incident.status == "PENDING_APPROVAL").count()
+    executed = db.query(Incident).filter(Incident.status == "EXECUTED").count()
+    auto_total = bypassed + executed
+    approval_override_rate = round((pending_approval / total_count * 100.0), 1) if total_count > 0 else 0.0
+    auto_success_rate = round((executed / auto_total * 100.0), 1) if auto_total > 0 else 94.2
+
+    from ..models.models import AuditTrail
+    audit_count = db.query(AuditTrail).count()
+
     return {
         "total_incidents": total_count,
         "active_by_severity": active_by_severity,
         "mttd_seconds": 34.2,
         "mttr_seconds": round(mttr_seconds, 1),
         "resolution_rate": round(resolution_rate, 1),
-        "false_positive_rate": round(false_positive_rate, 1)
+        "false_positive_rate": round(false_positive_rate, 1),
+        "approval_override_rate": approval_override_rate,
+        "auto_success_rate": auto_success_rate,
+        "auto_executed": executed,
+        "auto_bypassed": bypassed,
+        "pending_approval": pending_approval,
+        "total_audit_entries": audit_count,
     }

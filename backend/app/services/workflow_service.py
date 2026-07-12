@@ -22,7 +22,10 @@ from .incident_service import (
     create_incident, update_incident_status, add_incident_log, add_timeline_event,
 )
 from .safety_service import evaluate_command_safety, scrub_pii, detect_prompt_injection
+from ..core.config import get_settings
 from ..core.observability import logger
+
+settings = get_settings()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -107,6 +110,19 @@ DEFAULT_PROMPTS = {
         "category": "reliability",
     },
 }
+
+# ── Incident Type → Mastra Agent Routing ─────────────────────
+AGENT_ROUTING = {
+    "CPU_SPIKE":            {"agent": "RootCauseAnalysisAgent",     "sub_type": "performance",   "domain": "compute"},
+    "MEMORY_EXHAUSTION":    {"agent": "RootCauseAnalysisAgent",     "sub_type": "resource",      "domain": "memory"},
+    "DISK_FULL":            {"agent": "RemediationAgent",           "sub_type": "storage",       "domain": "storage"},
+    "HIGH_LATENCY":         {"agent": "ThreatIntelAgent",           "sub_type": "performance",   "domain": "network"},
+    "ERROR_RATE_SPIKE":     {"agent": "RemediationAgent",           "sub_type": "reliability",   "domain": "application"},
+    "UNAUTHORIZED_ACCESS":  {"agent": "ThreatIntelAgent",           "sub_type": "security",      "domain": "security"},
+    "NETWORK_OUTAGE":       {"agent": "ThreatIntelAgent",           "sub_type": "network",       "domain": "infrastructure"},
+}
+
+DEFAULT_AGENT = {"agent": "PrioritizationAgent", "sub_type": "general", "domain": "operations"}
 
 
 def seed_prompt_templates(db: Session) -> None:
@@ -668,10 +684,24 @@ def run_incident_workflow(
                 actor="llm-router",
                 decision_rationale=f"Complexity score: {routing_decision['complexity_score']}/100. Latency Critical: {latency_critical}. Cost Sensitive: {cost_sensitive}."
             )
-            
+
+            # Route to incident-type-specific Mastra agent
+            agent_info = AGENT_ROUTING.get(anomaly_type, DEFAULT_AGENT)
+            primary_agent = agent_info["agent"]
+            agent_sub_type = agent_info["sub_type"]
+            agent_domain = agent_info["domain"]
+
+            add_timeline_event(
+                db, incident.id, "AGENT_ROUTING",
+                f"Routed to {primary_agent} for {anomaly_type} ({agent_sub_type}/{agent_domain})",
+                f"Incident type {anomaly_type} mapped to {agent_sub_type} domain under {agent_domain}. Primary agent: {primary_agent}.",
+                actor="workflow-router",
+                decision_rationale=f"Agent routing map: {anomaly_type} -> {primary_agent}. Sub-type: {agent_sub_type}. Domain: {agent_domain}."
+            )
+
             add_incident_log(
                 db, incident.id, "REASONING",
-                f"LLM Analysis: {reasoning_result['analysis']}\nSuggested Action: {reasoning_result['action']}",
+                f"Agent: {primary_agent} | LLM Analysis: {reasoning_result['analysis']}\nSuggested Action: {reasoning_result['action']}",
             )
             from .timeline_service import generate_decision_explanation
             explanation = generate_decision_explanation("LLM_REASONING", {
@@ -691,6 +721,9 @@ def run_incident_workflow(
             )
             
             context["reasoning_result"] = reasoning_result
+            context["agent_routed"] = primary_agent
+            context["agent_sub_type"] = agent_sub_type
+            context["agent_domain"] = agent_domain
             _complete_step(step, "CONTRADICTION_CHECK")
             _record_trace(
                 db, correlation_id, "LLM_REASONING", time.time() - step_start,
@@ -736,7 +769,7 @@ def run_incident_workflow(
         step = _start_step("VALIDATE")
         try:
             step_start = time.time()
-            safety_status, safety_risk, safety_assessment = evaluate_command_safety(reasoning_result["action"])
+            safety_status, safety_risk, safety_assessment = _enkrypt_ai_safety_check(reasoning_result["action"])
             add_incident_log(
                 db, incident.id, "SAFETY_CHECK",
                 f"Enkrypt Safety: {safety_status} (Risk: {safety_risk:.0%}). {safety_assessment}",
@@ -1006,6 +1039,21 @@ def run_incident_workflow(
             state.is_completed = True
             _complete_step(step, "RESOLVE")
 
+            # Store incident embedding in Qdrant for future similarity search
+            try:
+                from ..core.vector_db import store_incident_embedding
+                store_incident_embedding(
+                    incident_id=incident.id,
+                    title=incident.title,
+                    metric_type=incident.metric_type,
+                    description=incident.description or "",
+                    severity=incident.severity or "MEDIUM",
+                    action_taken=incident.suggested_action or "",
+                    resolution_status="EXECUTED",
+                )
+            except Exception as emb_err:
+                logger.warning("workflow_incident_embedding_store_failed", error=str(emb_err))
+
             # Spin up background rollback monitoring thread
             import threading
             from ..core.database import SessionLocal
@@ -1030,6 +1078,76 @@ def run_incident_workflow(
     db.commit()
     db.refresh(incident)
     return incident
+
+
+def _enkrypt_ai_safety_check(command: str) -> tuple[str, float, str]:
+    """
+    Real Enkrypt AI SDK safety validation with local regex fallback.
+    Returns (status, risk_score, assessment) matching the evaluate_command_safety contract.
+    """
+    if settings.ENKRYPTAI_ENABLED and settings.ENKRYPTAI_API_KEY:
+        try:
+            from ..services.enkrypt_service import EnkryptSafetyService
+            import asyncio
+
+            enkrypt = EnkryptSafetyService(
+                api_key=settings.ENKRYPTAI_API_KEY,
+                base_url=settings.ENKRYPTAI_BASE_URL,
+            )
+
+            async def _call_enkrypt():
+                return await enkrypt.validate_command(command, context={"source": "workflow_pipeline"})
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    result = pool.submit(lambda: asyncio.run(_call_enkrypt())).result(timeout=5.0)
+            else:
+                result = asyncio.run(_call_enkrypt())
+
+            risk_score = result.get("risk_score", 0.0)
+            violations = result.get("violations", [])
+
+            if not result.get("is_safe", True):
+                status = "BLOCKED"
+                assessment = (
+                    f"ENKRYPT AI SDK: BLOCKED. Risk score {risk_score:.0%}. "
+                    f"Violations: {', '.join(str(v) for v in violations[:3])}. "
+                    f"{result.get('message', '')}"
+                )
+            else:
+                if risk_score >= 0.50:
+                    status = "ALLOWED"
+                    assessment = (
+                        f"ENKRYPT AI SDK: CONDITIONAL PASS. Risk score {risk_score:.0%}. "
+                        f"{result.get('message', 'Proceed with caution.')}"
+                    )
+                else:
+                    status = "ALLOWED"
+                    assessment = (
+                        f"ENKRYPT AI SDK: PASS. Risk score {risk_score:.0%}. "
+                        f"{result.get('message', 'Command validated by Enkrypt AI.')}"
+                    )
+
+            logger.info(
+                "enkrypt_ai_workflow_check",
+                status=status,
+                risk_score=risk_score,
+                command=command[:100],
+            )
+            return (status, risk_score, assessment)
+
+        except Exception as e:
+            logger.warning("enkrypt_ai_sdk_unavailable_fallback_to_local", error=str(e))
+            return evaluate_command_safety(command)
+    else:
+        logger.debug("enkrypt_ai_disabled_or_no_key_using_local_regex")
+        return evaluate_command_safety(command)
 
 
 def _simulate_llm_reasoning(

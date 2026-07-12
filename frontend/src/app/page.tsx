@@ -67,6 +67,8 @@ import {
   ArrowRight,
   TrendingUp,
   TrendingDown,
+  FileText,
+  Network,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -266,12 +268,17 @@ export default function Home() {
   const [slackSimulatorLoading, setSlackSimulatorLoading] = useState(false);
   
   // ── SRE Inspector & Replay Engine UI Hook States ────────────
-  const [inspectorTab, setInspectorTab] = useState<'timeline' | 'simulation' | 'options' | 'runbooks' | 'graph' | 'replay' | 'attack'>('timeline');
+  const [inspectorTab, setInspectorTab] = useState<'timeline' | 'simulation' | 'options' | 'runbooks' | 'graph' | 'replay' | 'attack' | 'postmortem'>('timeline');
   const [replayEvents, setReplayEvents] = useState<any[]>([]);
   const [isPlayingReplay, setIsPlayingReplay] = useState(false);
   const [replayIndex, setReplayIndex] = useState(-1);
   const [replaySpeed, setReplaySpeed] = useState<1 | 5 | 10>(1);
   const [replayIntervalId, setReplayIntervalId] = useState<any>(null);
+
+  // ── Postmortem Report State ─────────────────────────────────
+  const [postmortemData, setPostmortemData] = useState<any>(null);
+  const [postmortemLoading, setPostmortemLoading] = useState(false);
+  const [postmortemGenerating, setPostmortemGenerating] = useState(false);
   const [simulationData, setSimulationData] = useState<any>(null);
   const [remediationOptions, setRemediationOptions] = useState<any[]>([]);
   const [decisionGraph, setDecisionGraph] = useState<any>(null);
@@ -737,6 +744,32 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Fetch playbook executions error:', err);
+    }
+  };
+
+  // ── Postmortem Report Functions ──────────────────────────────
+  const fetchPostmortem = async (incidentId: number) => {
+    setPostmortemLoading(true);
+    try {
+      const data = await api.getPostmortem(incidentId);
+      setPostmortemData(data);
+    } catch (err: any) {
+      setPostmortemData(null);
+    } finally {
+      setPostmortemLoading(false);
+    }
+  };
+
+  const handleGeneratePostmortem = async () => {
+    if (!selectedIncident) return;
+    setPostmortemGenerating(true);
+    try {
+      const data = await api.generatePostmortem(selectedIncident.id);
+      setPostmortemData(data.postmortem || data);
+    } catch (err: any) {
+      console.error('Generate postmortem error:', err);
+    } finally {
+      setPostmortemGenerating(false);
     }
   };
 
@@ -2179,34 +2212,34 @@ export default function Home() {
                   <div className="absolute top-0 right-0 w-16 h-16 bg-[#00ff88]/5 rounded-full filter blur-xl"></div>
                   <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Approval Override Rate</span>
                   <span className="text-xl font-black text-slate-100 font-mono mt-1.5 block">
-                    8%
+                    {executiveMetrics?.approval_override_rate ?? 0}%
                   </span>
                   <p className="text-[9px] text-slate-500 mt-1">Manual overrides vs Auto-approvals</p>
                 </div>
 
                 <div className="p-4 bg-white/5 border border-white/5 rounded-xl text-center relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-16 h-16 bg-[#00d4ff]/5 rounded-full filter blur-xl"></div>
-                  <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Auto-Execution Speed</span>
+                  <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Auto-Executed</span>
                   <span className="text-xl font-black text-[#00d4ff] font-mono mt-1.5 block">
-                    2.4s
+                    {executiveMetrics?.auto_executed ?? 0}
                   </span>
-                  <p className="text-[9px] text-slate-500 mt-1">Mean autonomous reaction delay</p>
+                  <p className="text-[9px] text-slate-500 mt-1">Incidents auto-remediated</p>
                 </div>
 
                 <div className="p-4 bg-white/5 border border-white/5 rounded-xl text-center relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/5 rounded-full filter blur-xl"></div>
-                  <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Manual Resolution Speed</span>
+                  <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Pending Approval</span>
                   <span className="text-xl font-black text-amber-400 font-mono mt-1.5 block">
-                    185.0s
+                    {executiveMetrics?.pending_approval ?? 0}
                   </span>
-                  <p className="text-[9px] text-slate-500 mt-1">Mean operator reaction delay</p>
+                  <p className="text-[9px] text-slate-500 mt-1">Awaiting human review</p>
                 </div>
 
                 <div className="p-4 bg-white/5 border border-white/5 rounded-xl text-center relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-full filter blur-xl"></div>
                   <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider">Auto-rem. Success Rate</span>
                   <span className="text-xl font-black text-[#00ff88] font-mono mt-1.5 block">
-                    94.2%
+                    {executiveMetrics?.auto_success_rate ?? 94.2}%
                   </span>
                   <p className="text-[9px] text-slate-500 mt-1">Mitigated incidents success percentage</p>
                 </div>
@@ -2525,6 +2558,7 @@ export default function Home() {
                         { id: 'runbooks', label: 'Runbook RAG' },
                         { id: 'graph', label: 'Decision DAG' },
                         { id: 'replay', label: 'Interactive Replay' },
+                        { id: 'postmortem', label: 'Postmortem Report' },
                       ].map(t => (
                         <button
                           key={t.id}
@@ -2533,6 +2567,9 @@ export default function Home() {
                             if (t.id === 'replay') {
                               setReplayIndex(-1);
                               setIsPlayingReplay(false);
+                            }
+                            if (t.id === 'postmortem' && selectedIncident) {
+                              fetchPostmortem(selectedIncident.id);
                             }
                           }}
                           className={`px-3 py-1.5 rounded transition-all ${
@@ -3549,6 +3586,293 @@ export default function Home() {
                         </div>
                       </div>
                     )}
+
+                    {/* TAB 8: POSTMORTEM REPORT */}
+                    {inspectorTab === 'postmortem' && (
+                      <div className="space-y-6 animate-fade-in font-mono text-xs">
+                        <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
+                          <div>
+                            <h4 className="text-sm font-bold text-slate-200">Incident Postmortem Report</h4>
+                            <p className="text-[10px] text-slate-500 mt-1">Comprehensive analysis: Detection → Analysis → Safety Check → AI Decision → Execution → Resolution → Postmortem</p>
+                          </div>
+                          <button
+                            onClick={handleGeneratePostmortem}
+                            disabled={postmortemGenerating}
+                            className="px-4 py-2 bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/20 font-bold rounded-lg text-[10px] uppercase tracking-wider hover:bg-[#00ff88]/20 transition-all disabled:opacity-50"
+                          >
+                            {postmortemGenerating ? 'Generating...' : postmortemData ? 'Regenerate Report' : 'Generate Report'}
+                          </button>
+                        </div>
+
+                        {postmortemLoading ? (
+                          <div className="text-center py-12 text-slate-500">
+                            <div className="animate-spin w-6 h-6 border-2 border-[#00ff88] border-t-transparent rounded-full mx-auto mb-3" />
+                            Loading postmortem...
+                          </div>
+                        ) : postmortemData ? (
+                          <>
+                            {/* Executive Summary */}
+                            <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                              <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Executive Summary</h5>
+                              <pre className="text-[11px] text-slate-300 whitespace-pre-wrap leading-relaxed">{postmortemData.executive_summary}</pre>
+                            </div>
+
+                            {/* Incident Details */}
+                            {postmortemData.incident_details && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Incident Details</h5>
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-[10px]">
+                                  <div><span className="text-slate-500">ID:</span> <span className="text-slate-200 font-bold">#{postmortemData.incident_details.id}</span></div>
+                                  <div><span className="text-slate-500">Title:</span> <span className="text-slate-200 font-bold">{postmortemData.incident_details.title}</span></div>
+                                  <div><span className="text-slate-500">Correlation ID:</span> <span className="text-slate-400 font-bold">{postmortemData.incident_details.correlation_id}</span></div>
+                                  <div><span className="text-slate-500">Metric Type:</span> <span className="text-[#00d4ff] font-bold">{postmortemData.incident_details.metric_type}</span></div>
+                                  <div><span className="text-slate-500">Source:</span> <span className="text-slate-300 font-bold">{postmortemData.incident_details.source}</span></div>
+                                  <div><span className="text-slate-500">Status:</span> <span className={`font-bold ${postmortemData.incident_details.status === 'EXECUTED' ? 'text-emerald-400' : 'text-amber-400'}`}>{postmortemData.incident_details.status}</span></div>
+                                </div>
+                                {postmortemData.incident_details.description && (
+                                  <p className="mt-2 text-[10px] text-slate-400 leading-relaxed">{postmortemData.incident_details.description}</p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Impact Assessment */}
+                            {postmortemData.impact && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Impact Assessment</h5>
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[10px]">
+                                  <div><span className="text-slate-500">Severity:</span> <span className={`font-bold ${postmortemData.impact.severity_description === 'Critical' ? 'text-rose-400' : postmortemData.impact.severity_description === 'High' ? 'text-amber-400' : 'text-emerald-400'}`}>{postmortemData.impact.severity_description || postmortemData.severity}</span></div>
+                                  <div><span className="text-slate-500">Affected Users:</span> <span className="text-slate-200 font-bold">{postmortemData.impact.estimated_affected_users || 0}</span></div>
+                                  <div><span className="text-slate-500">Blast Radius:</span> <span className="text-slate-300 font-bold">{postmortemData.impact.blast_radius || 'N/A'}</span></div>
+                                  <div><span className="text-slate-500">Est. Cost:</span> <span className="text-amber-400 font-bold">${postmortemData.impact.downtime_cost_estimate_usd?.toFixed(2) || '0.00'}</span></div>
+                                </div>
+                                {postmortemData.impact.cascading_risk && (
+                                  <p className="mt-2 text-[10px] text-slate-400">Cascading Risk: {postmortemData.impact.cascading_risk}</p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Actions Performed */}
+                            {postmortemData.actions_taken?.length > 0 && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Actions Performed</h5>
+                                <div className="space-y-2">
+                                  {postmortemData.actions_taken.map((action: any, i: number) => (
+                                    <div key={i} className="p-2 bg-white/5 rounded border border-white/5 text-[10px]">
+                                      <div className="flex justify-between items-center mb-1">
+                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                          action.stage?.includes('EXECUT') ? 'bg-emerald-500/10 text-emerald-400' :
+                                          action.stage?.includes('VALIDATE') || action.stage?.includes('SAFETY') ? 'bg-[#00d4ff]/10 text-[#00d4ff]' :
+                                          'bg-white/5 text-slate-400'
+                                        }`}>{action.stage}</span>
+                                        <span className="text-slate-500">{action.timestamp ? new Date(action.timestamp).toLocaleTimeString() : ''}</span>
+                                      </div>
+                                      <p className="text-slate-300">{action.message}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Detailed Timeline */}
+                            {postmortemData.timeline?.length > 0 && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Detailed Timeline</h5>
+                                <div className="space-y-2">
+                                  {postmortemData.timeline.map((evt: any, i: number) => (
+                                    <div key={i} className="flex gap-3 text-[10px]">
+                                      <span className="text-slate-500 w-20 shrink-0">{evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : ''}</span>
+                                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ${
+                                        evt.event_type === 'action' ? 'bg-emerald-500/10 text-emerald-400' :
+                                        evt.event_type === 'decision' ? 'bg-[#00d4ff]/10 text-[#00d4ff]' :
+                                        evt.event_type === 'detection' ? 'bg-amber-500/10 text-amber-400' :
+                                        'bg-white/5 text-slate-400'
+                                      }`}>{evt.event_type || 'event'}</span>
+                                      <div>
+                                        <span className="text-slate-300 font-bold">{evt.title}</span>
+                                        {evt.description && <p className="text-slate-500 mt-0.5">{evt.description}</p>}
+                                        {evt.actor && <span className="text-slate-600 ml-2">by {evt.actor}</span>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Lifecycle Flow */}
+                            {postmortemData.lifecycle_flow && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Lifecycle Flow</h5>
+                                <div className="flex flex-wrap gap-2">
+                                  {postmortemData.lifecycle_flow.map((stage: any, idx: number) => (
+                                    <div key={idx} className={`px-3 py-2 rounded-lg border text-[10px] ${
+                                      stage.status === 'completed' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                                      stage.status === 'in_progress' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse' :
+                                      'bg-white/5 border-white/10 text-slate-500'
+                                    }`}>
+                                      <span className="font-bold block">{stage.name}</span>
+                                      {stage.timestamp && <span className="text-[9px] opacity-70">{new Date(stage.timestamp).toLocaleTimeString()}</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Timing & Severity */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                              {[
+                                { label: 'Detection', value: postmortemData.timing?.detection_time ? new Date(postmortemData.timing.detection_time).toLocaleString() : 'N/A' },
+                                { label: 'Resolution', value: postmortemData.timing?.resolution_time ? new Date(postmortemData.timing.resolution_time).toLocaleString() : 'Pending' },
+                                { label: 'Duration', value: postmortemData.timing?.duration_formatted || 'N/A' },
+                                { label: 'Severity', value: postmortemData.severity || 'N/A', color: postmortemData.severity === 'CRITICAL' ? 'text-rose-400' : postmortemData.severity === 'WARNING' ? 'text-amber-400' : 'text-emerald-400' },
+                              ].map((item, idx) => (
+                                <div key={idx} className="p-3 bg-white/5 rounded-lg border border-white/5">
+                                  <span className="text-[9px] text-slate-500 uppercase tracking-widest block mb-1">{item.label}</span>
+                                  <span className={`text-xs font-bold ${item.color || 'text-slate-200'}`}>{item.value}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Risk Score */}
+                            {postmortemData.risk_score && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Risk Assessment</h5>
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-[10px]">
+                                  <div><span className="text-slate-500">Confidence:</span> <span className="text-[#00d4ff] font-bold">{((postmortemData.risk_score.confidence_score || 0) * 100).toFixed(0)}%</span></div>
+                                  <div><span className="text-slate-500">Priority:</span> <span className="text-amber-400 font-bold">P{postmortemData.risk_score.priority_score || 'N/A'}</span></div>
+                                  <div><span className="text-slate-500">RCA Confidence:</span> <span className="text-[#00d4ff] font-bold">{postmortemData.risk_score.root_cause_confidence || 0}%</span></div>
+                                  <div><span className="text-slate-500">Overall Risk:</span> <span className={`font-bold ${postmortemData.risk_score.overall_risk_rating === 'HIGH' ? 'text-rose-400' : postmortemData.risk_score.overall_risk_rating === 'MEDIUM' ? 'text-amber-400' : 'text-emerald-400'}`}>{postmortemData.risk_score.overall_risk_rating}</span></div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Root Cause */}
+                            {postmortemData.root_cause && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Root Cause Analysis</h5>
+                                <p className="text-[11px] text-slate-300 leading-relaxed mb-2">{postmortemData.root_cause.primary_cause}</p>
+                                {postmortemData.root_cause.evidence?.length > 0 && (
+                                  <div className="mt-2">
+                                    <span className="text-[9px] text-slate-500 uppercase font-bold">Evidence:</span>
+                                    <ul className="mt-1 space-y-1">
+                                      {postmortemData.root_cause.evidence.map((e: string, i: number) => (
+                                        <li key={i} className="text-[10px] text-slate-400">• {e}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* AI Integrations */}
+                            {postmortemData.ai_integrations && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">AI Integration Details</h5>
+                                <div className="grid grid-cols-2 gap-3 text-[10px]">
+                                  <div><span className="text-slate-500">Provider:</span> <span className="text-[#00d4ff] font-bold">{postmortemData.ai_integrations.ai_model_provider?.providers_used?.join(', ') || 'N/A'}</span></div>
+                                  <div><span className="text-slate-500">Models:</span> <span className="text-slate-300 font-bold">{postmortemData.ai_integrations.ai_model_provider?.models_used?.join(', ') || 'N/A'}</span></div>
+                                  <div><span className="text-slate-500">AI Calls:</span> <span className="text-slate-300 font-bold">{postmortemData.ai_integrations.ai_calls_made}</span></div>
+                                  <div><span className="text-slate-500">Input Tokens:</span> <span className="text-slate-300 font-bold">{postmortemData.ai_integrations.token_usage?.total_input_tokens || 0}</span></div>
+                                  <div><span className="text-slate-500">Output Tokens:</span> <span className="text-slate-300 font-bold">{postmortemData.ai_integrations.token_usage?.total_output_tokens || 0}</span></div>
+                                  <div><span className="text-slate-500">Est. Cost:</span> <span className="text-amber-400 font-bold">${postmortemData.ai_integrations.token_usage?.estimated_cost_usd || 0}</span></div>
+                                </div>
+                                {/* Mastra Workflow Steps */}
+                                {postmortemData.ai_integrations.mastra_workflow?.steps?.length > 0 && (
+                                  <div className="mt-3 pt-3 border-t border-white/5">
+                                    <span className="text-[9px] text-slate-500 uppercase font-bold">Mastra Workflow Steps:</span>
+                                    <div className="mt-2 space-y-1">
+                                      {postmortemData.ai_integrations.mastra_workflow.steps.map((step: any, i: number) => (
+                                        <div key={i} className="flex justify-between items-center text-[10px]">
+                                          <span className={`${step.status === 'completed' ? 'text-emerald-400' : step.status === 'failed' ? 'text-rose-400' : 'text-slate-500'}`}>{step.step_name}</span>
+                                          <span className="text-slate-500">{step.duration_seconds?.toFixed(1)}s</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Enkrypt AI Validation */}
+                            {postmortemData.ai_integrations?.enkrypt_ai_validation && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Enkrypt AI Safety Validation</h5>
+                                <div className="flex items-center gap-2 text-[10px]">
+                                  <span className={`px-2 py-0.5 rounded font-bold ${postmortemData.ai_integrations.enkrypt_ai_validation.overall_status === 'PASSED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
+                                    {postmortemData.ai_integrations.enkrypt_ai_validation.overall_status}
+                                  </span>
+                                  <span className="text-slate-500">{postmortemData.ai_integrations.enkrypt_ai_validation.total_checks} checks performed</span>
+                                  <span className="text-slate-500">Max risk: {((postmortemData.ai_integrations.enkrypt_ai_validation.max_risk_score || 0) * 100).toFixed(0)}%</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Qdrant Similar Incidents */}
+                            {postmortemData.qdrant_similar_incidents?.length > 0 && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Related Similar Incidents</h5>
+                                <div className="space-y-2">
+                                  {postmortemData.qdrant_similar_incidents.map((si: any, i: number) => (
+                                    <div key={i} className="p-2 bg-white/5 rounded border border-white/5 text-[10px]">
+                                      <span className="text-slate-300 font-bold">#{si.incident_id}</span> <span className="text-slate-400">{si.title}</span>
+                                      <span className={`ml-2 px-1.5 py-0.5 rounded text-[9px] ${si.severity === 'CRITICAL' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400'}`}>{si.severity}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Lessons Learned */}
+                            {postmortemData.lessons_learned?.length > 0 && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Lessons Learned</h5>
+                                <div className="space-y-2">
+                                  {postmortemData.lessons_learned.map((l: any, i: number) => (
+                                    <div key={i} className="flex gap-2 text-[10px]">
+                                      <span className="px-1.5 py-0.5 rounded bg-[#00d4ff]/10 text-[#00d4ff] text-[9px] font-bold whitespace-nowrap">{l.category}</span>
+                                      <span className="text-slate-400">{l.lesson}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Prevention Recommendations */}
+                            {postmortemData.prevention_recommendations?.length > 0 && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Prevention Recommendations</h5>
+                                <div className="space-y-2">
+                                  {postmortemData.prevention_recommendations.map((r: any, i: number) => (
+                                    <div key={i} className="flex gap-2 text-[10px] items-start">
+                                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap ${
+                                        r.priority === 'high' ? 'bg-rose-500/10 text-rose-400' :
+                                        r.priority === 'medium' ? 'bg-amber-500/10 text-amber-400' :
+                                        'bg-emerald-500/10 text-emerald-400'
+                                      }`}>{r.priority?.toUpperCase()}</span>
+                                      <span className="text-slate-400">{r.recommendation}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Final Resolution */}
+                            {postmortemData.final_resolution?.suggested_action && (
+                              <div className="p-4 bg-black/30 rounded-xl border border-white/5">
+                                <h5 className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Final Resolution</h5>
+                                <pre className="text-[11px] text-emerald-400 bg-emerald-500/5 p-3 rounded border border-emerald-500/10 mb-2">{postmortemData.final_resolution.suggested_action}</pre>
+                                <p className="text-[10px] text-slate-400">{postmortemData.final_resolution.suggested_action_explanation}</p>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-center py-12 text-slate-500">
+                            <FileText className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                            <p className="text-xs">No postmortem report available for this incident.</p>
+                            <p className="text-[10px] mt-1 text-slate-600">Click "Generate Report" to create one.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="card p-12 flex flex-col items-center justify-center text-center">
@@ -4393,6 +4717,42 @@ export default function Home() {
                   >
                     <AlertTriangle className="w-5 h-5 text-blue-400" />
                     <span>DATA BREACH LEAK</span>
+                  </button>
+
+                  <button
+                    onClick={() => triggerDemoScenario('MEMORY_EXHAUSTION')}
+                    disabled={demoLoading}
+                    className="px-4 py-3 bg-gradient-to-r from-yellow-600/30 to-amber-600/30 hover:from-yellow-600/40 hover:to-amber-600/40 border border-yellow-500/30 rounded-xl text-slate-200 font-bold text-xs transition-all flex flex-col items-center justify-center gap-2"
+                  >
+                    <Gauge className="w-5 h-5 text-yellow-400" />
+                    <span>MEMORY OOMKILLED</span>
+                  </button>
+
+                  <button
+                    onClick={() => triggerDemoScenario('HIGH_LATENCY')}
+                    disabled={demoLoading}
+                    className="px-4 py-3 bg-gradient-to-r from-teal-600/30 to-emerald-600/30 hover:from-teal-600/40 hover:to-emerald-600/40 border border-emerald-500/30 rounded-xl text-slate-200 font-bold text-xs transition-all flex flex-col items-center justify-center gap-2"
+                  >
+                    <Clock className="w-5 h-5 text-emerald-400" />
+                    <span>HIGH LATENCY</span>
+                  </button>
+
+                  <button
+                    onClick={() => triggerDemoScenario('ERROR_RATE_SPIKE')}
+                    disabled={demoLoading}
+                    className="px-4 py-3 bg-gradient-to-r from-pink-600/30 to-red-600/30 hover:from-pink-600/40 hover:to-red-600/40 border border-red-500/30 rounded-xl text-slate-200 font-bold text-xs transition-all flex flex-col items-center justify-center gap-2"
+                  >
+                    <XCircle className="w-5 h-5 text-red-400" />
+                    <span>ERROR RATE SPIKE</span>
+                  </button>
+
+                  <button
+                    onClick={() => triggerDemoScenario('NETWORK_OUTAGE')}
+                    disabled={demoLoading}
+                    className="px-4 py-3 bg-gradient-to-r from-slate-600/30 to-zinc-600/30 hover:from-slate-600/40 hover:to-zinc-600/40 border border-zinc-500/30 rounded-xl text-slate-200 font-bold text-xs transition-all flex flex-col items-center justify-center gap-2"
+                  >
+                    <Network className="w-5 h-5 text-zinc-400" />
+                    <span>NETWORK OUTAGE</span>
                   </button>
                 </div>
 
