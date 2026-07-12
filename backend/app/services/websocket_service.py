@@ -17,6 +17,7 @@ from ..websocket.events import (
     WorkflowProgressEvent,
     LiveMetricsUpdateEvent,
     PlaybookProgressEvent,
+    MastraExecutionEvent,
 )
 
 
@@ -170,4 +171,46 @@ def broadcast_playbook_progress(record: Dict[str, Any]) -> None:
         log=record["log"]
     )
     pubsub_manager.publish("PlaybookProgress", evt.model_dump())
+
+
+def broadcast_mastra_execution(
+    incident_id: int,
+    step_name: str,
+    step_number: int,
+    total_steps: int,
+    step_status: str,
+    agent_name: str = "",
+    agent_sub_type: str = "",
+    agent_domain: str = "",
+    ai_provider: str = "simulation",
+    safety_status: str = "",
+    risk_score: float = 0.0,
+    confidence: float = 0.0,
+    action_taken: str = "",
+    anomaly_type: str = "",
+    severity: str = "",
+    duration_seconds: float = 0.0,
+    message: str = "",
+) -> None:
+    """Publish a MastraExecutionEvent for the Live Execution Monitor."""
+    evt = MastraExecutionEvent(
+        incident_id=incident_id,
+        step_name=step_name,
+        step_number=step_number,
+        total_steps=total_steps,
+        step_status=step_status,
+        agent_name=agent_name,
+        agent_sub_type=agent_sub_type,
+        agent_domain=agent_domain,
+        ai_provider=ai_provider,
+        safety_status=safety_status,
+        risk_score=risk_score,
+        confidence=confidence,
+        action_taken=action_taken,
+        anomaly_type=anomaly_type,
+        severity=severity,
+        duration_seconds=duration_seconds,
+        message=message,
+    )
+    pubsub_manager.publish("MastraExecution", evt.model_dump())
 

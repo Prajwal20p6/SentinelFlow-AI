@@ -102,3 +102,30 @@ class PlaybookProgressEvent(BaseModel):
     steps: list = Field(default_factory=list)
     log: list = Field(default_factory=list)
     timestamp: str = Field(default_factory=_get_utc_timestamp)
+
+
+# ── Mastra Live Execution Monitor Event ─────────────────────────────────────
+
+class MastraExecutionEvent(BaseModel):
+    """
+    Broadcast at each workflow step transition to power the Mastra Live Execution Monitor.
+    Carries agent, provider, safety, and risk metadata for judge-friendly display.
+    """
+    incident_id: int
+    step_name: str
+    step_number: int
+    total_steps: int = 8
+    step_status: str                  # in_progress, completed, failed
+    agent_name: str = ""
+    agent_sub_type: str = ""
+    agent_domain: str = ""
+    ai_provider: str = "simulation"
+    safety_status: str = ""
+    risk_score: float = 0.0
+    confidence: float = 0.0
+    action_taken: str = ""
+    anomaly_type: str = ""
+    severity: str = ""
+    duration_seconds: float = 0.0
+    message: str = ""
+    timestamp: str = Field(default_factory=_get_utc_timestamp)

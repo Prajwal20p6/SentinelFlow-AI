@@ -170,6 +170,10 @@ def run_incident_workflow(
 
     context = json.loads(state.context_data_json or "{}")
 
+    # Store workflow-level metadata in context for broadcast enrichment
+    context.setdefault("anomaly_type", anomaly_type)
+    context.setdefault("severity", severity)
+
     # Helper functions to record steps
     def _start_step(step_name: str) -> MastraWorkflowStep:
         s = db.query(MastraWorkflowStep).filter(
@@ -193,7 +197,7 @@ def run_incident_workflow(
             db.commit()
             
         try:
-            from .websocket_service import broadcast_workflow_progress
+            from .websocket_service import broadcast_workflow_progress, broadcast_mastra_execution
             from datetime import timedelta
             inc_id = incident.id if ('incident' in locals() and incident) else context.get("incident_id", 0)
             
@@ -218,6 +222,52 @@ def run_incident_workflow(
                 step_status="in_progress",
                 estimated_completion=est_completion
             )
+
+            # Broadcast Mastra execution event for live monitor
+            try:
+                _agent = context.get("agent_routed", "")
+                _sub = context.get("agent_sub_type", "")
+                _dom = context.get("agent_domain", "")
+                _rr = context.get("reasoning_result", {})
+                _prov = _rr.get("provider", "simulation") if isinstance(_rr, dict) else "simulation"
+                _conf = _rr.get("confidence", 0.0) if isinstance(_rr, dict) else 0.0
+                _safety_status = context.get("safety_status", "")
+                _safety_risk = context.get("safety_risk", 0.0)
+                _action = incident.suggested_action if incident else ""
+                _anomaly = context.get("anomaly_type", "")
+                _severity = context.get("severity", "")
+
+                step_labels = {
+                    "DETECT_ANOMALY": "Anomaly Detection & Agent Selection",
+                    "RETRIEVE_CONTEXT": "CRISPE Prompt Template Lookup",
+                    "RETRIEVE_RUNBOOKS": "RAG Knowledge Retrieval",
+                    "PLAN_REMEDIATION": "LLM Multi-Agent Reasoning",
+                    "CONTRADICTION_CHECK": "Mastra Contradiction Analysis",
+                    "VALIDATE": "Enkrypt AI Safety Validation",
+                    "APPROVE_DECISION": "Confidence Gate & Governance",
+                    "EXECUTE_REMEDIATION": "Autonomous Remediation Execution",
+                }
+
+                broadcast_mastra_execution(
+                    incident_id=int(inc_id),
+                    step_name=step_name,
+                    step_number=step_num,
+                    total_steps=8,
+                    step_status="in_progress",
+                    agent_name=_agent,
+                    agent_sub_type=_sub,
+                    agent_domain=_dom,
+                    ai_provider=_prov,
+                    safety_status=_safety_status,
+                    risk_score=_safety_risk,
+                    confidence=_conf,
+                    action_taken=_action or "",
+                    anomaly_type=_anomaly,
+                    severity=_severity,
+                    message=step_labels.get(step_name, step_name),
+                )
+            except Exception:
+                pass
         except Exception:
             pass
             
@@ -243,7 +293,7 @@ def run_incident_workflow(
             pass
 
         try:
-            from .websocket_service import broadcast_workflow_step, broadcast_workflow_progress
+            from .websocket_service import broadcast_workflow_step, broadcast_workflow_progress, broadcast_mastra_execution
             inc_id = incident.id if ('incident' in locals() and incident) else context.get("incident_id", 0)
             
             broadcast_workflow_step(
@@ -272,6 +322,41 @@ def run_incident_workflow(
                 step_name=step.step_name,
                 step_status="completed"
             )
+
+            try:
+                _agent = context.get("agent_routed", "")
+                _sub = context.get("agent_sub_type", "")
+                _dom = context.get("agent_domain", "")
+                _rr = context.get("reasoning_result", {})
+                _prov = _rr.get("provider", "simulation") if isinstance(_rr, dict) else "simulation"
+                _conf = _rr.get("confidence", 0.0) if isinstance(_rr, dict) else 0.0
+                _safety_status = context.get("safety_status", "")
+                _safety_risk = context.get("safety_risk", 0.0)
+                _action = incident.suggested_action if incident else ""
+                _anomaly = context.get("anomaly_type", "")
+                _severity = context.get("severity", "")
+
+                broadcast_mastra_execution(
+                    incident_id=int(inc_id),
+                    step_name=step.step_name,
+                    step_number=step_num,
+                    total_steps=8,
+                    step_status="completed",
+                    agent_name=_agent,
+                    agent_sub_type=_sub,
+                    agent_domain=_dom,
+                    ai_provider=_prov,
+                    safety_status=_safety_status,
+                    risk_score=_safety_risk,
+                    confidence=_conf,
+                    action_taken=_action or "",
+                    anomaly_type=_anomaly,
+                    severity=_severity,
+                    duration_seconds=duration_sec,
+                    message=f"Completed: {step.step_name}",
+                )
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -295,7 +380,7 @@ def run_incident_workflow(
             pass
 
         try:
-            from .websocket_service import broadcast_workflow_step, broadcast_workflow_progress
+            from .websocket_service import broadcast_workflow_step, broadcast_workflow_progress, broadcast_mastra_execution
             inc_id = incident.id if ('incident' in locals() and incident) else context.get("incident_id", 0)
             
             broadcast_workflow_step(
@@ -324,6 +409,21 @@ def run_incident_workflow(
                 step_name=step.step_name,
                 step_status="failed"
             )
+
+            try:
+                broadcast_mastra_execution(
+                    incident_id=int(inc_id),
+                    step_name=step.step_name,
+                    step_number=step_num,
+                    total_steps=8,
+                    step_status="failed",
+                    anomaly_type=context.get("anomaly_type", ""),
+                    severity=context.get("severity", ""),
+                    duration_seconds=duration_sec,
+                    message=f"Failed: {error_msg[:200]}",
+                )
+            except Exception:
+                pass
         except Exception:
             pass
 

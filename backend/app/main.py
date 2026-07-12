@@ -31,6 +31,7 @@ from .api.router_demo import router as demo_router
 from .api.router_websocket import router as websocket_router
 from .api.router_knowledge import router as knowledge_router
 from .api.router_security import router as security_router
+from .api.router_monitor import router as monitor_router
 
 settings = get_settings()
 
@@ -239,6 +240,7 @@ app.include_router(demo_router, prefix=settings.API_V1_PREFIX)
 app.include_router(websocket_router, prefix=settings.API_V1_PREFIX)
 app.include_router(knowledge_router, prefix=settings.API_V1_PREFIX)
 app.include_router(security_router, prefix=settings.API_V1_PREFIX)
+app.include_router(monitor_router, prefix=settings.API_V1_PREFIX)
 app.include_router(ops_router, prefix=settings.API_V1_PREFIX)
 
 

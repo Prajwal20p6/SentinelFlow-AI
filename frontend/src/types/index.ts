@@ -177,7 +177,8 @@ export type NavSection =
   | 'knowledge'
   | 'settings'
   | 'metrics'
-  | 'playbooks';
+  | 'playbooks'
+  | 'mastra';
 
 export interface ExecutiveReport {
   summary: string;
