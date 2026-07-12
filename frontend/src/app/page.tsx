@@ -1093,7 +1093,7 @@ export default function Home() {
         token: resetToken,
         new_password: password,
       });
-      setResetSuccessMsg('Password reset successfully! Please login with your new passphrase.');
+      setResetSuccessMsg('Password reset successfully! Please login with your new password.');
       setAuthView('login');
       setAuthLoading(false);
     } catch (err: any) {
@@ -1325,7 +1325,7 @@ export default function Home() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Passphrase
+                  Password
                 </label>
                 <input
                   type="password"
@@ -1377,7 +1377,7 @@ export default function Home() {
                   Create account
                 </button>
                 <button type="button" onClick={() => setAuthView('forgot')} className="hover:text-emerald-400 transition-colors">
-                  Forgot passphrase?
+                  Forgot password?
                 </button>
               </div>
             </form>
@@ -1445,7 +1445,7 @@ export default function Home() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Passphrase
+                  Password
                 </label>
                 <input
                   type="password"
@@ -1563,7 +1563,7 @@ export default function Home() {
                   }}
                   className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-bold rounded-xl transition-all text-xs font-bold"
                 >
-                  RESET PASSPHRASE
+                  RESET PASSWORD
                 </button>
               </div>
 
@@ -1580,7 +1580,7 @@ export default function Home() {
             <form onSubmit={handleResetPasswordSubmit} className="space-y-5">
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  New Passphrase
+                  New Password
                 </label>
                 <input
                   type="password"

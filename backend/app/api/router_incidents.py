@@ -220,6 +220,51 @@ def create_comment(
     return CommentResponse.model_validate(comment)
 
 
+@router.get("/{incident_id}/postmortem")
+def get_postmortem(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve the postmortem report for a resolved incident."""
+    from ..services.postmortem_service import get_postmortem, generate_postmortem
+    
+    incident = get_incident(db, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    
+    # Generate postmortem if not exists and incident is resolved
+    postmortem = get_postmortem(db, incident_id)
+    if not postmortem and incident.status in ["EXECUTED", "RESOLVED"]:
+        postmortem = generate_postmortem(db, incident_id)
+    
+    if not postmortem:
+        raise HTTPException(status_code=404, detail="Postmortem not available. Incident must be resolved first.")
+    
+    return postmortem
+
+
+@router.post("/{incident_id}/postmortem/generate")
+def generate_postmortem_endpoint(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("engineer")),
+):
+    """Manually trigger postmortem generation for an incident."""
+    from ..services.postmortem_service import generate_postmortem
+    
+    incident = get_incident(db, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    
+    postmortem = generate_postmortem(db, incident_id)
+    return {
+        "status": "success",
+        "incident_id": incident_id,
+        "postmortem": postmortem
+    }
+
+
 @router.get("/{incident_id}/timeline")
 def get_timeline(
     incident_id: int,

@@ -267,3 +267,194 @@ def cancel_playbook_execution(execution_id: str):
         incident_id=record["incident_id"],
     )
     return record
+
+
+# ── Service Metrics & Logs Endpoints for Mastra Agents ─────────────────────────
+
+@router.get("/services/{service_name}/metrics")
+def get_service_metrics(
+    service_name: str,
+    range: str = "1h",
+    db: Session = Depends(get_db)
+):
+    """
+    Get metrics for a specific service (called by Mastra RCA agent).
+    Returns simulated metrics based on service name and time range.
+    """
+    import random
+    from datetime import datetime, timedelta
+    
+    # Generate realistic metrics based on service name
+    base_cpu = random.uniform(20, 80)
+    base_memory = random.uniform(30, 70)
+    base_latency = random.uniform(50, 500)
+    base_error_rate = random.uniform(0, 5)
+    
+    # Adjust based on service type
+    if "payment" in service_name.lower():
+        base_cpu += 20
+        base_latency += 100
+    elif "database" in service_name.lower() or "postgres" in service_name.lower():
+        base_memory += 15
+        base_latency += 50
+    elif "cache" in service_name.lower() or "redis" in service_name.lower():
+        base_cpu -= 10
+        base_latency -= 30
+    
+    # Generate time series data
+    now = datetime.utcnow()
+    time_points = []
+    if range == "1h":
+        points = 60
+        delta = timedelta(minutes=1)
+    elif range == "24h":
+        points = 144
+        delta = timedelta(minutes=10)
+    else:
+        points = 30
+        delta = timedelta(minutes=2)
+    
+    for i in range(points):
+        timestamp = now - (delta * i)
+        time_points.append({
+            "timestamp": timestamp.isoformat(),
+            "cpu_usage": round(max(0, min(100, base_cpu + random.uniform(-10, 10))), 2),
+            "memory_usage": round(max(0, min(100, base_memory + random.uniform(-5, 5))), 2),
+            "latency_ms": round(max(0, base_latency + random.uniform(-50, 50)), 2),
+            "error_rate": round(max(0, base_error_rate + random.uniform(-1, 2)), 2),
+            "requests_per_sec": round(random.uniform(50, 500), 2)
+        })
+    
+    return {
+        "service_name": service_name,
+        "time_range": range,
+        "metrics": time_points,
+        "summary": {
+            "avg_cpu": round(sum(p["cpu_usage"] for p in time_points) / len(time_points), 2),
+            "avg_memory": round(sum(p["memory_usage"] for p in time_points) / len(time_points), 2),
+            "avg_latency": round(sum(p["latency_ms"] for p in time_points) / len(time_points), 2),
+            "avg_error_rate": round(sum(p["error_rate"] for p in time_points) / len(time_points), 2)
+        }
+    }
+
+
+@router.get("/services/{service_name}/logs")
+def get_service_logs(
+    service_name: str,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    Get logs for a specific service (called by Mastra RCA agent).
+    Returns simulated log entries based on service name.
+    """
+    import random
+    from datetime import datetime, timedelta
+    
+    log_levels = ["INFO", "INFO", "INFO", "WARNING", "ERROR"]
+    log_messages = [
+        "Processing request successfully",
+        "Database query completed",
+        "Cache hit for key",
+        "Authentication verified",
+        "Response sent to client",
+        "Connection established",
+        "Health check passed",
+        "Configuration loaded",
+        "Worker thread started",
+        "Metrics collected"
+    ]
+    
+    warning_messages = [
+        "High memory usage detected",
+        "Slow query execution",
+        "Connection pool near capacity",
+        "Rate limit approaching",
+        "Disk space warning"
+    ]
+    
+    error_messages = [
+        "Connection timeout",
+        "Database connection failed",
+        "Authentication failed",
+        "Invalid request payload",
+        "Service unavailable"
+    ]
+    
+    logs = []
+    now = datetime.utcnow()
+    
+    for i in range(limit):
+        timestamp = now - timedelta(seconds=random.randint(0, 3600))
+        level = random.choice(log_levels)
+        
+        if level == "WARNING":
+            message = random.choice(warning_messages)
+        elif level == "ERROR":
+            message = random.choice(error_messages)
+        else:
+            message = random.choice(log_messages)
+        
+        logs.append({
+            "timestamp": timestamp.isoformat(),
+            "level": level,
+            "message": f"[{service_name}] {message}",
+            "service": service_name,
+            "thread_id": f"thread-{random.randint(1000, 9999)}"
+        })
+    
+    # Sort by timestamp descending
+    logs.sort(key=lambda x: x["timestamp"], reverse=True)
+    
+    return {
+        "service_name": service_name,
+        "limit": limit,
+        "logs": logs[:limit],
+        "total": len(logs)
+    }
+
+
+@router.get("/incidents/similar")
+def get_similar_incidents(
+    pattern: str,
+    limit: int = 5,
+    db: Session = Depends(get_db)
+):
+    """
+    Find similar incidents based on pattern (called by Mastra RCA agent).
+    Returns incidents with matching patterns in title or description.
+    """
+    from ..models.models import Incident
+    
+    # Search for incidents with similar patterns
+    pattern_lower = pattern.lower()
+    
+    incidents = db.query(Incident).filter(
+        (
+            Incident.title.ilike(f"%{pattern_lower}%") |
+            Incident.description.ilike(f"%{pattern_lower}%") |
+            Incident.metric_type.ilike(f"%{pattern_lower}%")
+        )
+    ).order_by(Incident.created_at.desc()).limit(limit).all()
+    
+    results = []
+    for inc in incidents:
+        results.append({
+            "incident_id": inc.id,
+            "correlation_id": inc.correlation_id,
+            "title": inc.title,
+            "metric_type": inc.metric_type,
+            "severity": inc.severity,
+            "status": inc.status,
+            "created_at": inc.created_at.isoformat() if inc.created_at else None,
+            "resolved_at": inc.resolved_at.isoformat() if inc.resolved_at else None,
+            "suggested_action": inc.suggested_action,
+            "confidence_score": inc.confidence_score
+        })
+    
+    return {
+        "pattern": pattern,
+        "limit": limit,
+        "similar_incidents": results,
+        "count": len(results)
+    }

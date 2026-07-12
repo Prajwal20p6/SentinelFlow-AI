@@ -41,7 +41,7 @@ class EncryptionService:
             except Exception:
                 pass
 
-            # Otherwise, derive a valid Fernet key from the raw passphrase
+            # Otherwise, derive a valid Fernet key from the raw password
             derived = base64.urlsafe_b64encode(hashlib.sha256(key_str.encode()).digest())
             cls._fernets.append(Fernet(derived))
 

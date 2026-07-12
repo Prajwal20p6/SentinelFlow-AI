@@ -55,9 +55,10 @@ class Settings(BaseSettings):
     ENCRYPTION_KEYS: str = ""
 
     # ── LLM ──────────────────────────────────────────────────
-    LLM_PROVIDER: str = "simulation"
+    LLM_PROVIDER: str = "openai"  # Changed from simulation to openai for production
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""
     LLM_COST_SENSITIVE: bool = False
     LLM_LATENCY_CRITICAL: bool = False
 
