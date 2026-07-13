@@ -388,6 +388,18 @@ export default function Home() {
       const data = await resp.json();
       if (resp.ok) {
         setDemoResultMsg(`Success: Demo scenario ${scenario} triggered! Generated Incident #${data.incident_id}`);
+        
+        // Immediately refresh incidents list to show new incident
+        try {
+          const incData = await api.getIncidents();
+          setIncidents(incData.incidents);
+          const active = incData.incidents.filter(i => ['DETECTED', 'ANALYZING', 'PENDING_APPROVAL', 'APPROVED', 'EXECUTING'].includes(i.status));
+          setActiveIncidentCount(active.length);
+          setGlobalStatus(active.length > 0 ? 'THREAT_DETECTED' : 'SECURE');
+        } catch (refreshErr) {
+          console.error('Failed to refresh incidents after trigger:', refreshErr);
+        }
+        
         return data.incident_id as number;
       } else {
         setDemoResultMsg(`Error: ${data.detail || 'Trigger failed'}`);
@@ -513,7 +525,7 @@ export default function Home() {
         setServerHealth(health);
 
         // Circuit Breakers
-        const cbData = await fetch(`${getApiBaseUrl()}/ops/circuit-breakers`, {
+        const cbData = await fetch(`${getApiBaseUrl()}/circuit-breakers`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('sf_token')}` }
         }).then(r => r.json()).catch(() => ({}));
         setCircuitBreakers(cbData);
@@ -797,7 +809,7 @@ export default function Home() {
     try {
       const token = localStorage.getItem('sf_token');
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/ops/live-metrics`, {
+      const res = await fetch(`${apiBase}/live-metrics`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -818,7 +830,7 @@ export default function Home() {
     try {
       const token = localStorage.getItem('sf_token');
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/ops/playbook-executions`, {
+      const res = await fetch(`${apiBase}/playbook-executions`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -870,7 +882,7 @@ export default function Home() {
       const token = localStorage.getItem('sf_token');
       const apiBase = getApiBaseUrl();
       const res = await fetch(
-        `${apiBase}/ops/playbook-executions?incident_id=${playbookTargetIncident}&playbook_name=${encodeURIComponent(playbookName)}`,
+        `${apiBase}/playbook-executions?incident_id=${playbookTargetIncident}&playbook_name=${encodeURIComponent(playbookName)}`,
         { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
       );
       if (res.ok) {
@@ -897,7 +909,7 @@ export default function Home() {
         const token = localStorage.getItem('sf_token');
         const apiBase = getApiBaseUrl();
         const res = await fetch(
-          `${apiBase}/ops/playbook-executions/${execId}/advance?success=true&log_message=Step%20completed%20automatically`,
+          `${apiBase}/playbook-executions/${execId}/advance?success=true&log_message=Step%20completed%20automatically`,
           { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
         );
         if (res.ok) {
@@ -920,7 +932,7 @@ export default function Home() {
     try {
       const token = localStorage.getItem('sf_token');
       const apiBase = getApiBaseUrl();
-      const res = await fetch(`${apiBase}/ops/playbook-executions/${execId}/cancel`, {
+      const res = await fetch(`${apiBase}/playbook-executions/${execId}/cancel`, {
         method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {

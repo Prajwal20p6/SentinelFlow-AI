@@ -347,15 +347,15 @@ class APIClient {
   }
 
   async getPolicies(): Promise<any[]> {
-    return this.request('/ops/policies');
+    return this.request('/policies');
   }
 
   async togglePolicy(id: number): Promise<any> {
-    return this.request(`/ops/policies/${id}/toggle`, { method: 'POST' });
+    return this.request(`/policies/${id}/toggle`, { method: 'POST' });
   }
 
   async dryRunPolicy(incidentId: number): Promise<any> {
-    return this.request(`/ops/policies/dry-run?incident_id=${incidentId}`, { method: 'POST' });
+    return this.request(`/policies/dry-run?incident_id=${incidentId}`, { method: 'POST' });
   }
 
   async getAttackGraph(incidentId: number): Promise<any> {
