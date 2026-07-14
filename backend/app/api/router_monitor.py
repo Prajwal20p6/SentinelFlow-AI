@@ -195,6 +195,11 @@ def _build_execution_response(db: Session, incident: Incident) -> dict:
             "suggested_action": incident.suggested_action,
             "created_at": incident.created_at.isoformat() if incident.created_at else None,
             "resolved_at": incident.resolved_at.isoformat() if incident.resolved_at else None,
+            "root_cause_json": incident.root_cause_json,
+            "explainability_json": incident.explainability_json,
+            "simulation_json": incident.simulation_json,
+            "remediation_options_json": incident.remediation_options_json,
+            "recommended_runbooks_json": incident.recommended_runbooks_json,
         },
         "workflow": {
             "name": "IncidentResponseWorkflow",

@@ -8,7 +8,7 @@ def test_health_check_endpoint(client):
     assert resp.json()["status"] == "healthy"
 
 def test_readiness_check_endpoint(client):
-    resp = client.get("/ready")
+    resp = client.get("/api/v1/ready")
     assert resp.status_code == 200
     assert resp.json()["status"] == "ready"
     assert resp.json()["dependencies"]["database"] == "OK"
@@ -19,7 +19,7 @@ def test_prometheus_metrics_endpoint(client):
     track_workflow_step("PLAN_REMEDIATION", "completed", 1.25)
     track_llm_request("simulation", "success", 0.85)
 
-    resp = client.get("/metrics")
+    resp = client.get("/api/v1/metrics")
     assert resp.status_code == 200
     metrics_data = resp.text
     

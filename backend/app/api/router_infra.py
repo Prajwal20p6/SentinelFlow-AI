@@ -99,7 +99,7 @@ def get_audit_trail(
 @router.get("/audit-trail/verify")
 def verify_audit_chain(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("engineer")),
+    current_user: User = Depends(require_role("admin")),
 ):
     """Verify the cryptographic integrity of the audit chain."""
     result = validate_audit_chain(db)

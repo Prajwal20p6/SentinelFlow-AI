@@ -50,7 +50,7 @@ class RegisterRequest(BaseModel):
     @field_validator('role')
     @classmethod
     def validate_role(cls, v):
-        allowed = {"engineer", "viewer", "executive"}
+        allowed = {"engineer", "viewer", "executive", "admin"}
         if v not in allowed:
             raise ValueError(f"Invalid role. Allowed: {', '.join(sorted(allowed))}")
         return v

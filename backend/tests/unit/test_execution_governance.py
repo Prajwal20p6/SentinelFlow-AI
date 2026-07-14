@@ -182,7 +182,7 @@ def test_governance_rules_eval(db_session):
 
 def test_execution_config_endpoint(client, db_session, auth_headers_admin):
     # Fetch
-    resp = client.get("/execution-config")
+    resp = client.get("/api/v1/execution-config")
     assert resp.status_code == 200
     assert resp.json()["mode"] in ["MANUAL", "SEMI_AUTONOMOUS", "FULLY_AUTONOMOUS"]
 
@@ -195,7 +195,7 @@ def test_execution_config_endpoint(client, db_session, auth_headers_admin):
         "restricted_services": "payment,checkout",
         "low_risk_actions": "restart_pod"
     }
-    post_resp = client.post("/execution-config", json=update_payload, headers=auth_headers_admin)
+    post_resp = client.post("/api/v1/execution-config", json=update_payload, headers=auth_headers_admin)
     assert post_resp.status_code == 200
     assert post_resp.json()["mode"] == "FULLY_AUTONOMOUS"
     assert post_resp.json()["min_confidence_score"] == 95
