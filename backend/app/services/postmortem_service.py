@@ -28,7 +28,7 @@ def generate_postmortem(db: Session, incident_id: int) -> Dict[str, Any]:
     # ── Gather all incident data ───────────────────────────────
     logs = db.query(IncidentLog).filter(
         IncidentLog.incident_id == incident_id
-    ).order_by(IncidentLog.created_at.asc()).all()
+    ).order_by(IncidentLog.timestamp.asc()).all()
     
     timeline = db.query(TimelineEvent).filter(
         TimelineEvent.incident_id == incident_id
@@ -102,7 +102,7 @@ def generate_postmortem(db: Session, incident_id: int) -> Dict[str, Any]:
         action_items.append({
             "stage": log.stage,
             "message": log.message,
-            "timestamp": log.created_at.isoformat() if log.created_at else None,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
             "metadata": log.metadata_json if hasattr(log, 'metadata_json') else None,
         })
     
@@ -355,7 +355,7 @@ def _build_lifecycle_flow(logs, timeline, workflow_steps, incident):
             for s in stages:
                 if s["stage"] == mapped and s["status"] == "pending":
                     s["status"] = "completed"
-                    s["timestamp"] = log.created_at.isoformat() if log.created_at else None
+                    s["timestamp"] = log.timestamp.isoformat() if log.timestamp else None
                     s["details"] = log.message[:200] if log.message else None
                     break
     
@@ -429,7 +429,7 @@ def _extract_enkrypt_validation(logs, audits):
     for log in logs:
         if log.stage == "SAFETY_CHECK" or (log.message and "safety" in (log.message or "").lower()):
             validation_events.append({
-                "timestamp": log.created_at.isoformat() if log.created_at else None,
+                "timestamp": log.timestamp.isoformat() if log.timestamp else None,
                 "message": log.message,
                 "stage": log.stage,
             })
