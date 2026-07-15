@@ -5,7 +5,7 @@ Exposes Prometheus metric scraper and K8s readiness/liveness probes.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
@@ -195,8 +195,8 @@ def get_playbook_execution(execution_id: str):
 
 @router.post("/playbook-executions")
 def start_playbook_execution(
-    incident_id: int,
-    playbook_name: str,
+    incident_id: int = Form(...),
+    playbook_name: str = Form(...),
     db: Session = Depends(get_db),
 ):
     """

@@ -740,9 +740,8 @@ export default function Home() {
   const fetchGovConfig = async () => {
     try {
       const apiBase = getApiBaseUrl();
-      const rootUrl = apiBase.replace('/api/v1', '');
       const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${rootUrl}/execution-config`, {
+      const res = await fetch(`${apiBase}/execution-config`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -784,9 +783,8 @@ export default function Home() {
     setGovMsg('');
     try {
       const apiBase = getApiBaseUrl();
-      const rootUrl = apiBase.replace('/api/v1', '');
       const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${rootUrl}/execution-config`, {
+      const res = await fetch(`${apiBase}/execution-config`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -906,9 +904,12 @@ export default function Home() {
     try {
       const token = localStorage.getItem('sf_token');
       const apiBase = getApiBaseUrl();
+      const formData = new FormData();
+      formData.append('incident_id', playbookTargetIncident.toString());
+      formData.append('playbook_name', playbookName);
       const res = await fetch(
-        `${apiBase}/playbook-executions?incident_id=${playbookTargetIncident}&playbook_name=${encodeURIComponent(playbookName)}`,
-        { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }
+        `${apiBase}/playbook-executions`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData }
       );
       if (res.ok) {
         const record = await res.json();

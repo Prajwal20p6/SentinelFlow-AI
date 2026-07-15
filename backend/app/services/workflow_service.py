@@ -637,6 +637,23 @@ def run_incident_workflow(
             context["prompt_context"] = prompt_context
             _complete_step(step, "RETRIEVE_RUNBOOKS")
             _record_trace(db, correlation_id, "CRISPE_PROMPT_LOAD", time.time() - step_start)
+            
+            # Broadcast Mastra execution update for live monitor
+            try:
+                from .websocket_service import broadcast_mastra_execution
+                broadcast_mastra_execution(
+                    incident_id=incident.id,
+                    step_name="RETRIEVE_CONTEXT",
+                    step_number=2,
+                    total_steps=8,
+                    step_status="completed",
+                    anomaly_type=incident.metric_type,
+                    severity=incident.severity,
+                    duration_seconds=time.time() - step_start,
+                    message="CRISPE prompt template loaded successfully"
+                )
+            except Exception:
+                pass
         except Exception as e:
             _fail_step(step, str(e))
             raise e
@@ -672,6 +689,23 @@ def run_incident_workflow(
             ]
             _complete_step(step, "PLAN_REMEDIATION")
             _record_trace(db, correlation_id, "QDRANT_RAG_RETRIEVAL", time.time() - step_start)
+            
+            # Broadcast Mastra execution update for live monitor
+            try:
+                from .websocket_service import broadcast_mastra_execution
+                broadcast_mastra_execution(
+                    incident_id=incident.id,
+                    step_name="RETRIEVE_RUNBOOKS",
+                    step_number=3,
+                    total_steps=8,
+                    step_status="completed",
+                    anomaly_type=incident.metric_type,
+                    severity=incident.severity,
+                    duration_seconds=time.time() - step_start,
+                    message=f"RAG retrieved {len(rag_results)} similar runbooks"
+                )
+            except Exception:
+                pass
         except Exception as e:
             _fail_step(step, str(e))
             raise e
@@ -841,6 +875,29 @@ def run_incident_workflow(
                     "cost_usd": reasoning_result.get("cost_usd", 0.0)
                 })
             )
+            
+            # Broadcast Mastra execution update for live monitor
+            try:
+                from .websocket_service import broadcast_mastra_execution
+                broadcast_mastra_execution(
+                    incident_id=incident.id,
+                    step_name="PLAN_REMEDIATION",
+                    step_number=4,
+                    total_steps=8,
+                    step_status="completed",
+                    agent_name=primary_agent,
+                    agent_sub_type=agent_sub_type,
+                    agent_domain=agent_domain,
+                    ai_provider=reasoning_result.get("provider", "simulation"),
+                    confidence=reasoning_result.get("confidence", 0.0),
+                    action_taken=reasoning_result.get("action", ""),
+                    anomaly_type=incident.metric_type,
+                    severity=incident.severity,
+                    duration_seconds=time.time() - step_start,
+                    message=f"LLM reasoning completed by {primary_agent}"
+                )
+            except Exception:
+                pass
         except Exception as e:
             _fail_step(step, str(e))
             raise e
@@ -864,6 +921,23 @@ def run_incident_workflow(
             context["contradiction"] = contradiction
             _complete_step(step, "VALIDATE")
             _record_trace(db, correlation_id, "MASTRA_CONTRADICTION_CHECK", time.time() - step_start)
+            
+            # Broadcast Mastra execution update for live monitor
+            try:
+                from .websocket_service import broadcast_mastra_execution
+                broadcast_mastra_execution(
+                    incident_id=incident.id,
+                    step_name="CONTRADICTION_CHECK",
+                    step_number=5,
+                    total_steps=8,
+                    step_status="completed",
+                    anomaly_type=incident.metric_type,
+                    severity=incident.severity,
+                    duration_seconds=time.time() - step_start,
+                    message=f"Contradiction check: {contradiction['message']}"
+                )
+            except Exception:
+                pass
         except Exception as e:
             _fail_step(step, str(e))
             raise e
@@ -903,6 +977,25 @@ def run_incident_workflow(
             context["safety_assessment"] = safety_assessment
             _complete_step(step, "APPROVE_DECISION")
             _record_trace(db, correlation_id, "ENKRYPT_SAFETY_CHECK", time.time() - step_start)
+            
+            # Broadcast Mastra execution update for live monitor
+            try:
+                from .websocket_service import broadcast_mastra_execution
+                broadcast_mastra_execution(
+                    incident_id=incident.id,
+                    step_name="VALIDATE",
+                    step_number=6,
+                    total_steps=8,
+                    step_status="completed",
+                    safety_status=safety_status,
+                    risk_score=safety_risk,
+                    anomaly_type=incident.metric_type,
+                    severity=incident.severity,
+                    duration_seconds=time.time() - step_start,
+                    message=f"Enkrypt AI safety check: {safety_status}"
+                )
+            except Exception:
+                pass
         except Exception as e:
             _fail_step(step, str(e))
             raise e
@@ -1115,6 +1208,26 @@ def run_incident_workflow(
                 
             _complete_step(step, "EXECUTE_REMEDIATION")
             _record_trace(db, correlation_id, "CONFIDENCE_GATE", time.time() - step_start)
+            
+            # Broadcast Mastra execution update for live monitor
+            try:
+                from .websocket_service import broadcast_mastra_execution
+                decision_msg = "Auto-pilot APPROVED" if context.get("decision_routed") == "AUTO_PILOT" else "Human approval required"
+                broadcast_mastra_execution(
+                    incident_id=incident.id,
+                    step_name="APPROVE_DECISION",
+                    step_number=7,
+                    total_steps=8,
+                    step_status="completed",
+                    confidence=confidence,
+                    action_taken=incident.suggested_action or "",
+                    anomaly_type=incident.metric_type,
+                    severity=incident.severity,
+                    duration_seconds=time.time() - step_start,
+                    message=f"Governance decision: {decision_msg}"
+                )
+            except Exception:
+                pass
         except Exception as e:
             _fail_step(step, str(e))
             raise e
@@ -1144,6 +1257,24 @@ def run_incident_workflow(
             context["execution_output"] = exec_log.get("execution_output")
             state.is_completed = True
             _complete_step(step, "RESOLVE")
+            
+            # Broadcast Mastra execution update for live monitor
+            try:
+                from .websocket_service import broadcast_mastra_execution
+                broadcast_mastra_execution(
+                    incident_id=incident.id,
+                    step_name="EXECUTE_REMEDIATION",
+                    step_number=8,
+                    total_steps=8,
+                    step_status="completed",
+                    action_taken=incident.suggested_action or "",
+                    anomaly_type=incident.metric_type,
+                    severity=incident.severity,
+                    duration_seconds=time.time() - step_start,
+                    message=f"Executed: {incident.suggested_action}"
+                )
+            except Exception:
+                pass
 
             # Store incident embedding in Qdrant for future similarity search
             try:
