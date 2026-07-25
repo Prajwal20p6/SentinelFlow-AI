@@ -170,24 +170,24 @@ def add_metrics_annotation(
 # ── Phase 58: Playbook Execution Tracking ────────────────────────────────────
 
 @router.get("/playbook-executions")
-def list_playbook_executions():
+def list_playbook_executions(db: Session = Depends(get_db)):
     """List all tracked playbook executions (newest first)."""
     from ..services.playbook_execution_service import PlaybookExecutionService
-    return PlaybookExecutionService.get_all_executions()
+    return PlaybookExecutionService.get_all_executions(db=db)
 
 
 @router.get("/playbook-executions/incident/{incident_id}")
-def list_incident_playbook_executions(incident_id: int):
+def list_incident_playbook_executions(incident_id: int, db: Session = Depends(get_db)):
     """List all playbook executions for a specific incident."""
     from ..services.playbook_execution_service import PlaybookExecutionService
-    return PlaybookExecutionService.get_executions_for_incident(incident_id)
+    return PlaybookExecutionService.get_executions_for_incident(incident_id, db=db)
 
 
 @router.get("/playbook-executions/{execution_id}")
-def get_playbook_execution(execution_id: str):
+def get_playbook_execution(execution_id: str, db: Session = Depends(get_db)):
     """Retrieve a single playbook execution by its UUID."""
     from ..services.playbook_execution_service import PlaybookExecutionService
-    record = PlaybookExecutionService.get_execution(execution_id)
+    record = PlaybookExecutionService.get_execution(execution_id, db=db)
     if record is None:
         raise HTTPException(status_code=404, detail="Playbook execution not found.")
     return record
@@ -210,6 +210,7 @@ def start_playbook_execution(
         incident_id=incident_id,
         playbook_name=playbook_name,
         actor="sre-operator",
+        db=db,
     )
 
     # Annotate the cluster metrics timeline
@@ -228,35 +229,36 @@ def advance_playbook_step(
     execution_id: str,
     success: bool = True,
     log_message: Optional[str] = None,
+    db: Session = Depends(get_db),
 ):
     """
     Advance a playbook execution to the next step.
     Pass success=False to mark the current step as FAILED and abort.
     """
     from ..services.playbook_execution_service import PlaybookExecutionService
-    record = PlaybookExecutionService.advance_step(execution_id, success, log_message)
+    record = PlaybookExecutionService.advance_step(execution_id, success, log_message, db=db)
     if record is None:
         raise HTTPException(status_code=404, detail="Playbook execution not found.")
     return record
 
 
 @router.post("/playbook-executions/{execution_id}/log")
-def append_playbook_log(execution_id: str, message: str):
+def append_playbook_log(execution_id: str, message: str, db: Session = Depends(get_db)):
     """Append a log line to the current step of a running execution."""
     from ..services.playbook_execution_service import PlaybookExecutionService
-    record = PlaybookExecutionService.append_log(execution_id, message)
+    record = PlaybookExecutionService.append_log(execution_id, message, db=db)
     if record is None:
         raise HTTPException(status_code=404, detail="Playbook execution not found.")
     return record
 
 
 @router.post("/playbook-executions/{execution_id}/cancel")
-def cancel_playbook_execution(execution_id: str):
+def cancel_playbook_execution(execution_id: str, db: Session = Depends(get_db)):
     """Cancel a running playbook execution."""
     from ..services.playbook_execution_service import PlaybookExecutionService
     from ..services.metrics_dashboard_service import MetricsDashboardService
 
-    record = PlaybookExecutionService.cancel_execution(execution_id)
+    record = PlaybookExecutionService.cancel_execution(execution_id, db=db)
     if record is None:
         raise HTTPException(status_code=404, detail="Playbook execution not found.")
 
@@ -267,6 +269,7 @@ def cancel_playbook_execution(execution_id: str):
         incident_id=record["incident_id"],
     )
     return record
+
 
 
 # ── Service Metrics & Logs Endpoints for Mastra Agents ─────────────────────────
