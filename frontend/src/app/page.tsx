@@ -86,23 +86,27 @@ import {
 } from 'recharts';
 
 
+import { useAuthStore } from '../store/authStore';
+
 export default function Home() {
-  // ── Authentication State ─────────────────────────────────────
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [email, setEmail] = useState('admin@sentinelflow.ai');
-  const [password, setPassword] = useState('admin123');
-  const [mfaRequired, setMfaRequired] = useState(false);
-  const [mfaToken, setMfaToken] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authView, setAuthView] = useState<'login' | 'register' | 'forgot' | 'reset' | 'reset_password_final'>('login');
-  const [regFullName, setRegFullName] = useState('');
-  const [regOrgId, setRegOrgId] = useState('');
-  const [regRole, setRegRole] = useState('responder');
-  const [resetToken, setResetToken] = useState('');
-  const [resetSuccessMsg, setResetSuccessMsg] = useState('');
-  const [sessions, setSessions] = useState<any[]>([]);
+  // ── Authentication State (Zustand Store) ─────────────────────
+  const {
+    isLoggedIn, setIsLoggedIn,
+    user, setUser,
+    email, setEmail,
+    password, setPassword,
+    mfaRequired, setMfaRequired,
+    mfaToken, setMfaToken,
+    authError, setAuthError,
+    authLoading, setAuthLoading,
+    authView, setAuthView,
+    regFullName, setRegFullName,
+    regOrgId, setRegOrgId,
+    regRole, setRegRole,
+    resetToken, setResetToken,
+    resetSuccessMsg, setResetSuccessMsg,
+    sessions, setSessions,
+  } = useAuthStore();
 
   // ── Application Navigation State ─────────────────────────────
   const [activeTab, setActiveTab] = useState<NavSection>('dashboard');
