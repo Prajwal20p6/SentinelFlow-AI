@@ -89,8 +89,10 @@ import {
 import { useAuthStore } from '../store/authStore';
 import { useIncidentStore } from '../store/incidentStore';
 import { usePostmortemStore } from '../store/postmortemStore';
+import { usePlaybookStore } from '../store/playbookStore';
 
 export default function Home() {
+
 
   // ── Authentication State (Zustand Store) ─────────────────────
   const {
@@ -401,13 +403,15 @@ export default function Home() {
   const [metricsLoading, setMetricsLoading] = useState(false);
   const [selectedMetricService, setSelectedMetricService] = useState<string | null>(null);
 
-  // ── Phase 58: Playbook Execution Tracking State ──────────────
-  const [playbookExecutions, setPlaybookExecutions] = useState<any[]>([]);
-  const [selectedExecution, setSelectedExecution] = useState<any | null>(null);
-  const [playbookName, setPlaybookName] = useState('Standard Kubernetes Recovery Playbook');
-  const [playbookTargetIncident, setPlaybookTargetIncident] = useState<number | null>(null);
-  const [playbookLoading, setPlaybookLoading] = useState(false);
-  const [playbookMsg, setPlaybookMsg] = useState('');
+  // ── Phase 58: Playbook Execution Tracking State (Zustand Store) ──
+  const {
+    playbookExecutions, setPlaybookExecutions,
+    selectedExecution, setSelectedExecution,
+    playbookName, setPlaybookName,
+    playbookTargetIncident, setPlaybookTargetIncident,
+    playbookLoading, setPlaybookLoading,
+    playbookMsg, setPlaybookMsg,
+  } = usePlaybookStore();
 
 
   const triggerDemoScenario = async (scenario: string): Promise<number | null> => {
