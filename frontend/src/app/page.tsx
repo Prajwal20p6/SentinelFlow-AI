@@ -91,8 +91,10 @@ import { useIncidentStore } from '../store/incidentStore';
 import { usePostmortemStore } from '../store/postmortemStore';
 import { usePlaybookStore } from '../store/playbookStore';
 import { useMastraStore } from '../store/mastraStore';
+import { useLiveStore } from '../store/liveStore';
 
 export default function Home() {
+
 
 
 
@@ -141,33 +143,26 @@ export default function Home() {
     }
   })();
 
-  // ── WebSocket Real-Time Progress State ────────────────────────
-  const [activeAgents, setActiveAgents] = useState<Record<number, {
-    agent_name: string;
-    status: string;
-    progress: number;
-    message: string;
-    details: any;
-    timestamp: string;
-  }>>({});
+  // ── WebSocket Real-Time Progress State (Zustand Store) ────────
+  const {
+    activeAgents, setActiveAgents,
+    agentActivitiesLog, setAgentActivitiesLog,
+    workflowProgress, setWorkflowProgress,
+    obsSummary, setObsSummary,
+    obsTraces, setObsTraces,
+    notifications, setNotifications,
+    liveMetrics, setLiveMetrics,
+    metricsHistory, setMetricsHistory,
+    metricsAnnotations, setMetricsAnnotations,
+    metricsLoading, setMetricsLoading,
+    selectedMetricService, setSelectedMetricService,
+    replayEvents, setReplayEvents,
+    isPlayingReplay, setIsPlayingReplay,
+    replayIndex, setReplayIndex,
+    replaySpeed, setReplaySpeed,
+    replayIntervalId, setReplayIntervalId,
+  } = useLiveStore();
 
-  const [agentActivitiesLog, setAgentActivitiesLog] = useState<Record<number, Array<{
-    agent_name: string;
-    status: string;
-    progress: number;
-    message: string;
-    details: any;
-    timestamp: string;
-  }>>>({});
-
-  const [workflowProgress, setWorkflowProgress] = useState<Record<number, {
-    current_step: number;
-    total_steps: number;
-    step_name: string;
-    step_status: string;
-    estimated_completion?: string;
-    timestamp: string;
-  }>>({});
 
   // ── WebSocket Subscriptions ──
   useWebSocket('AgentActivity', (data) => {
@@ -314,10 +309,6 @@ export default function Home() {
     }
   });
 
-  const [obsSummary, setObsSummary] = useState<ObservabilitySummary | null>(null);
-  const [obsTraces, setObsTraces] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
-
 
   // ── Executive Dashboard State ────────────────────────────────
   const [executiveMetrics, setExecutiveMetrics] = useState<any>(null);
@@ -342,12 +333,6 @@ export default function Home() {
   
   // ── SRE Inspector & Replay Engine UI Hook States ────────────
   const [inspectorTab, setInspectorTab] = useState<'timeline' | 'simulation' | 'options' | 'runbooks' | 'graph' | 'replay' | 'attack' | 'postmortem'>('timeline');
-  const [replayEvents, setReplayEvents] = useState<any[]>([]);
-  const [isPlayingReplay, setIsPlayingReplay] = useState(false);
-  const [replayIndex, setReplayIndex] = useState(-1);
-  const [replaySpeed, setReplaySpeed] = useState<1 | 5 | 10>(1);
-  const [replayIntervalId, setReplayIntervalId] = useState<any>(null);
-
   // ── Postmortem & Analysis State (Zustand Store) ────────────
   const {
     postmortemData, setPostmortemData,
@@ -397,13 +382,6 @@ export default function Home() {
   // ── Demo & Telemetry Simulator State ─────────────────────────
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoResultMsg, setDemoResultMsg] = useState('');
-
-  // ── Phase 57: Live Cluster Metrics Dashboard State ───────────
-  const [liveMetrics, setLiveMetrics] = useState<any>(null);
-  const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
-  const [metricsAnnotations, setMetricsAnnotations] = useState<any[]>([]);
-  const [metricsLoading, setMetricsLoading] = useState(false);
-  const [selectedMetricService, setSelectedMetricService] = useState<string | null>(null);
 
   // ── Phase 58: Playbook Execution Tracking State (Zustand Store) ──
   const {
