@@ -43,7 +43,23 @@ SECRET_KEY=highly-secured-randomized-jwt-secret-string-here
 ENCRYPTION_KEY=secure-aes-encryption-key-must-be-32-chars-long!
 ```
 
+### Centralized Secrets Management (Local `.env` vs AWS Secrets Manager)
+
+SentinelFlow AI supports two secret loading backends configured via `SECRETS_PROVIDER`:
+
+1. **Local Environment / Standard Containers (`SECRETS_PROVIDER=env`)**:
+   - Default mode. Reads credentials directly from environment variables or `.env` files.
+   - Ideal for local development, Docker Compose, and default Railway deployments.
+
+2. **AWS Secrets Manager (`SECRETS_PROVIDER=aws`)**:
+   - Enterprise production mode. Automatically fetches credentials from AWS Secrets Manager with in-memory caching and automatic fallback.
+   - Configuration variables:
+     - `AWS_REGION`: AWS region name (e.g. `us-east-1`).
+     - `AWS_SECRET_NAME`: JSON bundle secret name (e.g. `sentinelflow/production/secrets`).
+   - The JSON bundle should contain key-value pairs corresponding to settings (`DATABASE_URL`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `QDRANT_API_KEY`, `ENKRYPTAI_API_KEY`, `SECRET_KEY`, etc.).
+
 ---
+
 
 ## 3. Docker Compose Orchestration
 

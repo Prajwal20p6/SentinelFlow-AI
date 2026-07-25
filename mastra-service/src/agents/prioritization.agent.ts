@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import type { Tool } from "@mastra/core/tools";
+import { mastraConfig } from "../config/mastra.config";
 
 const getPrioritizationTools = (): Tool[] => [
   {
@@ -14,10 +15,10 @@ const getPrioritizationTools = (): Tool[] => [
     },
     execute: async ({ service_name }) => {
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/services/${service_name}/criticality`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/services/${service_name}/criticality`,
         {
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`
           }
         }
       );
@@ -38,11 +39,11 @@ const getPrioritizationTools = (): Tool[] => [
     },
     execute: async ({ incident_type, affected_services, duration_minutes = 0 }) => {
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/incidents/business-impact`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/incidents/business-impact`,
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`,
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({ incident_type, affected_services, duration_minutes })

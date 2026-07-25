@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import type { Tool } from "@mastra/core/tools";
+import { mastraConfig } from "../config/mastra.config";
 
 const getThreatIntelTools = (): Tool[] => [
   {
@@ -16,11 +17,11 @@ const getThreatIntelTools = (): Tool[] => [
     execute: async ({ ioc_type, ioc_value }) => {
       // Call Python backend which integrates with threat intel APIs
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/threat-intelligence/enrich`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/threat-intelligence/enrich`,
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`,
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({ ioc_type, ioc_value })
@@ -41,10 +42,10 @@ const getThreatIntelTools = (): Tool[] => [
     },
     execute: async ({ ioc_value }) => {
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/threat-intelligence/breaches?ioc=${ioc_value}`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/threat-intelligence/breaches?ioc=${ioc_value}`,
         {
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`
           }
         }
       );

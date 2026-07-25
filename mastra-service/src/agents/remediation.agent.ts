@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import type { Tool } from "@mastra/core/tools";
+import { mastraConfig } from "../config/mastra.config";
 
 const getRemediationTools = (): Tool[] => [
   {
@@ -15,10 +16,10 @@ const getRemediationTools = (): Tool[] => [
     },
     execute: async ({ incident_type, severity }) => {
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/remediations/options?type=${incident_type}&severity=${severity}`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/remediations/options?type=${incident_type}&severity=${severity}`,
         {
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`
           }
         }
       );
@@ -38,11 +39,11 @@ const getRemediationTools = (): Tool[] => [
     },
     execute: async ({ action_id, incident_id }) => {
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/remediations/simulate`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/remediations/simulate`,
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`,
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({ action_id, incident_id })
@@ -65,11 +66,11 @@ const getRemediationTools = (): Tool[] => [
     },
     execute: async ({ action, service, users_affected = 0 }) => {
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/remediations/risk-estimate`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/remediations/risk-estimate`,
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`,
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({ action, service, users_affected })
@@ -92,11 +93,11 @@ const getRemediationTools = (): Tool[] => [
     },
     execute: async ({ command, incident_id = "", incident_type = "" }) => {
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/security/validate-command`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/security/validate-command`,
         {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`,
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({

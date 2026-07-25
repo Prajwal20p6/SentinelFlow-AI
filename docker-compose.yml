@@ -19,6 +19,7 @@ services:
       - QDRANT_PORT=6333
       - ENVIRONMENT=production
       - DEBUG=false
+      - SECRETS_PROVIDER=${SECRETS_PROVIDER:-env}
       - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
     depends_on:
       postgres:

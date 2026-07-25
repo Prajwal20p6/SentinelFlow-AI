@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     QDRANT_PORT: int = 6333
     QDRANT_COLLECTION: str = "runbooks"
     QDRANT_VECTOR_SIZE: int = 384
+    QDRANT_API_KEY: str = ""
 
     # ── Authentication ───────────────────────────────────────
     SECRET_KEY: str = "sentinelflow-dev-secret-key-change-in-production"
@@ -109,6 +110,30 @@ class Settings(BaseSettings):
 
     def __init__(self, **values):
         super().__init__(**values)
+
+        # ── Centralized Secrets Provider Integration ───────────────
+        from .secrets import get_secret
+
+        secret_fields = {
+            "SECRET_KEY": "sentinelflow-dev-secret-key-change-in-production",
+            "ENCRYPTION_KEY": "sentinelflow-aes256-encryption-key!!",
+            "DATABASE_URL": "sqlite:///./sentinelflow.db",
+            "REDIS_URL": "redis://localhost:6379/0",
+            "OPENAI_API_KEY": "",
+            "ANTHROPIC_API_KEY": "",
+            "GOOGLE_API_KEY": "",
+            "ENKRYPTAI_API_KEY": "",
+            "SLACK_BOT_TOKEN": "",
+            "THREAT_INTEL_API_KEY": "sf-threat-intel-secret-key",
+            "VIRUSTOTAL_API_KEY": "",
+            "ABUSEIPDB_API_KEY": "",
+            "QDRANT_API_KEY": "",
+        }
+        for field, default_val in secret_fields.items():
+            loaded_val = get_secret(field, default_val)
+            if loaded_val is not None and loaded_val != getattr(self, field, None):
+                setattr(self, field, loaded_val)
+
         if self.ENVIRONMENT == "production":
             try:
                 import sys

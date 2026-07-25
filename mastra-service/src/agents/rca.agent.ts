@@ -1,5 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import type { Tool } from "@mastra/core/tools";
+import { mastraConfig } from "../config/mastra.config";
 
 const getRCATools = (): Tool[] => [
   {
@@ -16,10 +17,10 @@ const getRCATools = (): Tool[] => [
     execute: async ({ service_name, time_range = "1h" }) => {
       // Call Python backend to get metrics
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/services/${service_name}/metrics?range=${time_range}`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/services/${service_name}/metrics?range=${time_range}`,
         {
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`
           }
         }
       );
@@ -39,10 +40,10 @@ const getRCATools = (): Tool[] => [
     },
     execute: async ({ service_name, limit = 100 }) => {
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/services/${service_name}/logs?limit=${limit}`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/services/${service_name}/logs?limit=${limit}`,
         {
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`
           }
         }
       );
@@ -62,10 +63,10 @@ const getRCATools = (): Tool[] => [
     },
     execute: async ({ pattern, limit = 5 }) => {
       const response = await fetch(
-        `${process.env.PYTHON_BACKEND_URL}/api/v1/incidents/similar?pattern=${pattern}&limit=${limit}`,
+        `${mastraConfig.pythonBackendUrl}/api/v1/incidents/similar?pattern=${pattern}&limit=${limit}`,
         {
           headers: {
-            "Authorization": `Bearer ${process.env.PYTHON_BACKEND_API_KEY}`
+            "Authorization": `Bearer ${mastraConfig.pythonBackendApiKey}`
           }
         }
       );

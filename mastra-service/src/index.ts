@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { setupApi } from "./api/index";
 import { mastraConfig } from "./config/mastra.config";
+import { getSecret } from "./config/secrets";
 
 const app = express();
 
@@ -9,11 +10,13 @@ const app = express();
 app.use(express.json());
 
 // Setup API bridge environment keys for Mastra SDK resolver
-if (!process.env.OPENAI_API_KEY && process.env.MASTRA_OPENAI_API_KEY) {
-  process.env.OPENAI_API_KEY = process.env.MASTRA_OPENAI_API_KEY;
+const openaiKey = getSecret("OPENAI_API_KEY") || getSecret("MASTRA_OPENAI_API_KEY");
+if (openaiKey) {
+  process.env.OPENAI_API_KEY = openaiKey;
 }
-if (!process.env.ANTHROPIC_API_KEY && process.env.MASTRA_ANTHROPIC_API_KEY) {
-  process.env.ANTHROPIC_API_KEY = process.env.MASTRA_ANTHROPIC_API_KEY;
+const anthropicKey = getSecret("ANTHROPIC_API_KEY") || getSecret("MASTRA_ANTHROPIC_API_KEY");
+if (anthropicKey) {
+  process.env.ANTHROPIC_API_KEY = anthropicKey;
 }
 
 // Setup Mastra API

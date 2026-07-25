@@ -11,6 +11,7 @@ from typing import Optional, Any
 from pydantic import BaseModel, Field
 
 from ..core.config import get_settings
+from ..core.secrets import get_secret
 from ..core.observability import logger
 
 settings = get_settings()
@@ -71,7 +72,7 @@ class LLMServiceManager:
             except Exception as e:
                 logger.warning("llm_anthropic_init_failed", error=str(e))
                 
-        google_key = os.getenv("GOOGLE_API_KEY")
+        google_key = settings.GOOGLE_API_KEY or get_secret("GOOGLE_API_KEY")
         if GEMINI_AVAILABLE and google_key:  # Gemini configuration
             try:
                 genai.configure(api_key=google_key)
