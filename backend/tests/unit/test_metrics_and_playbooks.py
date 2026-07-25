@@ -130,18 +130,35 @@ class TestMetricsDashboardService:
 # ── Phase 58: PlaybookExecutionService Tests ─────────────────────────────────
 
 class TestPlaybookExecutionService:
-    """Tests for the step-by-step playbook execution tracking service."""
+    """Tests for the step-by-step playbook execution tracking service backed by PostgreSQL/Database."""
 
     def setup_method(self):
-        from app.services.playbook_execution_service import PlaybookExecutionService, _executions
-        _executions.clear()
+        from app.services.playbook_execution_service import PlaybookExecutionService
+        from app.core.database import SessionLocal
+        from app.models.models import PlaybookExecution
+
         self.svc = PlaybookExecutionService
+        self.db = SessionLocal()
+        try:
+            self.db.query(PlaybookExecution).delete()
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+
+    def teardown_method(self):
+        from app.models.models import PlaybookExecution
+        try:
+            self.db.query(PlaybookExecution).delete()
+            self.db.commit()
+        finally:
+            self.db.close()
 
     def test_start_execution_returns_valid_record(self):
         record = self.svc.start_execution(
             incident_id=1,
             playbook_name="Test Playbook",
             actor="test-user",
+            db=self.db,
         )
         assert record["execution_id"]
         assert record["incident_id"] == 1
@@ -152,124 +169,162 @@ class TestPlaybookExecutionService:
         assert record["progress_pct"] == 0
 
     def test_start_execution_first_step_is_running(self):
-        record = self.svc.start_execution(incident_id=1, playbook_name="Test")
+        record = self.svc.start_execution(incident_id=1, playbook_name="Test", db=self.db)
         assert record["steps"][0]["status"] == "RUNNING"
         for step in record["steps"][1:]:
             assert step["status"] == "PENDING"
 
     def test_start_execution_with_custom_steps(self):
         custom_steps = ["Diagnose", "Patch", "Verify"]
-        record = self.svc.start_execution(1, "Custom", steps=custom_steps)
+        record = self.svc.start_execution(1, "Custom", steps=custom_steps, db=self.db)
         assert record["total_steps"] == 3
         assert record["steps"][0]["name"] == "Diagnose"
 
     def test_advance_step_progresses_to_next_step(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C"], db=self.db)
         exec_id = record["execution_id"]
-        updated = self.svc.advance_step(exec_id, success=True)
+        updated = self.svc.advance_step(exec_id, success=True, db=self.db)
         assert updated["current_step"] == 1
         assert updated["steps"][0]["status"] == "COMPLETE"
         assert updated["steps"][1]["status"] == "RUNNING"
 
     def test_advance_step_tracks_progress_percentage(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C", "D"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C", "D"], db=self.db)
         exec_id = record["execution_id"]
-        self.svc.advance_step(exec_id)
-        self.svc.advance_step(exec_id)
-        updated = self.svc.advance_step(exec_id)
+        self.svc.advance_step(exec_id, db=self.db)
+        self.svc.advance_step(exec_id, db=self.db)
+        updated = self.svc.advance_step(exec_id, db=self.db)
         assert updated["progress_pct"] == pytest.approx(75.0, abs=1.0)
 
     def test_advance_step_completes_execution(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A", "B"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A", "B"], db=self.db)
         exec_id = record["execution_id"]
-        self.svc.advance_step(exec_id)
-        final = self.svc.advance_step(exec_id)
+        self.svc.advance_step(exec_id, db=self.db)
+        final = self.svc.advance_step(exec_id, db=self.db)
         assert final["status"] == "COMPLETE"
         assert final["progress_pct"] == 100
         assert final["completed_at"] is not None
 
     def test_advance_step_failure_aborts_execution(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C"], db=self.db)
         exec_id = record["execution_id"]
-        failed = self.svc.advance_step(exec_id, success=False, log_message="Network timeout")
+        failed = self.svc.advance_step(exec_id, success=False, log_message="Network timeout", db=self.db)
         assert failed["status"] == "FAILED"
         assert failed["steps"][0]["status"] == "FAILED"
-        # Remaining steps should be SKIPPED
         for step in failed["steps"][1:]:
             assert step["status"] == "SKIPPED"
 
     def test_advance_step_on_completed_execution_is_noop(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A"], db=self.db)
         exec_id = record["execution_id"]
-        completed = self.svc.advance_step(exec_id)
+        completed = self.svc.advance_step(exec_id, db=self.db)
         assert completed["status"] == "COMPLETE"
-        # Calling advance again should not error or change status
-        again = self.svc.advance_step(exec_id)
+        again = self.svc.advance_step(exec_id, db=self.db)
         assert again["status"] == "COMPLETE"
 
     def test_advance_step_returns_none_for_missing_id(self):
-        result = self.svc.advance_step("non-existent-id")
+        result = self.svc.advance_step("non-existent-id", db=self.db)
         assert result is None
 
     def test_append_log_adds_line(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A"], db=self.db)
         exec_id = record["execution_id"]
-        updated = self.svc.append_log(exec_id, "Starting health check...")
+        updated = self.svc.append_log(exec_id, "Starting health check...", db=self.db)
         assert any("Starting health check" in line for line in updated["log"])
 
     def test_get_execution_by_id(self):
-        record = self.svc.start_execution(1, "Playbook")
+        record = self.svc.start_execution(1, "Playbook", db=self.db)
         exec_id = record["execution_id"]
-        retrieved = self.svc.get_execution(exec_id)
+        retrieved = self.svc.get_execution(exec_id, db=self.db)
         assert retrieved is not None
         assert retrieved["execution_id"] == exec_id
 
     def test_get_executions_for_incident(self):
-        self.svc.start_execution(99, "Playbook A")
-        self.svc.start_execution(99, "Playbook B")
-        self.svc.start_execution(100, "Other")
-        results = self.svc.get_executions_for_incident(99)
+        self.svc.start_execution(99, "Playbook A", db=self.db)
+        self.svc.start_execution(99, "Playbook B", db=self.db)
+        self.svc.start_execution(100, "Other", db=self.db)
+        results = self.svc.get_executions_for_incident(99, db=self.db)
         assert len(results) == 2
         for r in results:
             assert r["incident_id"] == 99
 
     def test_cancel_execution(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C"], db=self.db)
         exec_id = record["execution_id"]
-        cancelled = self.svc.cancel_execution(exec_id)
+        cancelled = self.svc.cancel_execution(exec_id, db=self.db)
         assert cancelled["status"] == "FAILED"
         assert any("cancelled" in line.lower() for line in cancelled["log"])
         for step in cancelled["steps"]:
             assert step["status"] in ("SKIPPED", "RUNNING", "PENDING")
 
     def test_cancel_completed_execution_is_noop(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A"], db=self.db)
         exec_id = record["execution_id"]
-        self.svc.advance_step(exec_id)
-        already_done = self.svc.cancel_execution(exec_id)
-        # Should return without changing status
+        self.svc.advance_step(exec_id, db=self.db)
+        already_done = self.svc.cancel_execution(exec_id, db=self.db)
         assert already_done["status"] == "COMPLETE"
 
     def test_get_all_executions_sorted_newest_first(self):
-        r1 = self.svc.start_execution(1, "Alpha")
-        r2 = self.svc.start_execution(2, "Beta")
-        all_execs = self.svc.get_all_executions()
+        r1 = self.svc.start_execution(1, "Alpha", db=self.db)
+        r2 = self.svc.start_execution(2, "Beta", db=self.db)
+        all_execs = self.svc.get_all_executions(db=self.db)
         assert len(all_execs) == 2
-        # Most recent start_at should come first
         assert all_execs[0]["started_at"] >= all_execs[1]["started_at"]
 
     def test_eta_estimate_decreases_as_steps_advance(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C", "D"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A", "B", "C", "D"], db=self.db)
         exec_id = record["execution_id"]
         eta_before = record["estimated_completion"]
-        updated = self.svc.advance_step(exec_id)
+        updated = self.svc.advance_step(exec_id, db=self.db)
         eta_after = updated["estimated_completion"]
-        # ETA should move closer in time (later advance = less time remaining)
         assert eta_after <= eta_before or updated["status"] in ("COMPLETE", "FAILED")
 
     def test_log_message_attached_to_step_on_advance(self):
-        record = self.svc.start_execution(1, "Playbook", steps=["A", "B"])
+        record = self.svc.start_execution(1, "Playbook", steps=["A", "B"], db=self.db)
         exec_id = record["execution_id"]
-        updated = self.svc.advance_step(exec_id, success=True, log_message="Health check passed")
+        updated = self.svc.advance_step(exec_id, success=True, log_message="Health check passed", db=self.db)
         step_logs = updated["steps"][0]["log_lines"]
         assert any("Health check passed" in line for line in step_logs)
+
+    def test_playbook_execution_persists_across_service_reinstantiation(self):
+        """
+        REGRESSION TEST: Simulates backend process restart.
+        Verifies that playbook execution records saved by one DB session/service instance
+        are fully queryable by a completely new DB session/service instance.
+        """
+        from app.core.database import SessionLocal
+
+        # 1. Start execution in first DB session
+        initial_record = self.svc.start_execution(
+            incident_id=505,
+            playbook_name="Restart Survival Playbook",
+            steps=["Step 1", "Step 2", "Step 3"],
+            actor="process-1",
+            db=self.db,
+        )
+        exec_id = initial_record["execution_id"]
+        self.svc.advance_step(exec_id, success=True, log_message="Step 1 completed", db=self.db)
+
+        # 2. Close first DB session (simulating backend process termination)
+        self.db.close()
+
+        # 3. Open a brand new DB session (simulating new process startup)
+        new_db = SessionLocal()
+        try:
+            # Query execution from brand new DB session
+            persisted_record = self.svc.get_execution(exec_id, db=new_db)
+            assert persisted_record is not None
+            assert persisted_record["execution_id"] == exec_id
+            assert persisted_record["incident_id"] == 505
+            assert persisted_record["playbook_name"] == "Restart Survival Playbook"
+            assert persisted_record["current_step"] == 1
+            assert persisted_record["steps"][0]["status"] == "COMPLETE"
+            assert persisted_record["steps"][1]["status"] == "RUNNING"
+            assert any("Step 1 completed" in line for line in persisted_record["steps"][0]["log_lines"])
+
+            # Further advance in the new session
+            advanced = self.svc.advance_step(exec_id, success=True, log_message="Step 2 completed", db=new_db)
+            assert advanced["current_step"] == 2
+        finally:
+            new_db.close()
+

@@ -4,10 +4,11 @@ Complete schema covering Users, Incidents, Audit Trails, Telemetry, Timelines,
 Prompt Templates, and Observability Traces.
 """
 
+import json
 from datetime import datetime, timezone
 from sqlalchemy import (
     Column, Integer, String, Float, DateTime, ForeignKey,
-    Text, Boolean, Index, Enum as SAEnum,
+    Text, Boolean, Index, Enum as SAEnum, JSON,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import TypeDecorator
@@ -409,7 +410,49 @@ class RemediationExecution(Base):
     finished_at = Column(DateTime, nullable=True)
 
 
+# ── Playbook Execution Tracking Model ────────────────────────
+class PlaybookExecution(Base):
+    __tablename__ = "playbook_executions"
+
+    execution_id = Column(String(36), primary_key=True, index=True)
+    incident_id = Column(Integer, ForeignKey("incidents.id", ondelete="CASCADE"), nullable=False, index=True)
+    playbook_name = Column(String(255), nullable=False)
+    actor = Column(String(255), default="system")
+    status = Column(String(30), default="RUNNING")
+    current_step = Column(Integer, default=0)
+    total_steps = Column(Integer, default=0)
+    progress_pct = Column(Float, default=0.0)
+    steps_json = Column(JSON, nullable=False)
+    log_json = Column(JSON, nullable=False)
+    started_at = Column(DateTime, default=_utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    estimated_completion = Column(String(100), nullable=True)
+
+    def to_dict(self) -> dict:
+        def _fmt_time(val):
+            if isinstance(val, datetime):
+                return val.isoformat()
+            return val
+
+        return {
+            "execution_id": self.execution_id,
+            "incident_id": self.incident_id,
+            "playbook_name": self.playbook_name,
+            "actor": self.actor,
+            "status": self.status,
+            "current_step": self.current_step,
+            "total_steps": self.total_steps,
+            "progress_pct": self.progress_pct,
+            "steps": self.steps_json if isinstance(self.steps_json, list) else (json.loads(self.steps_json) if isinstance(self.steps_json, str) else []),
+            "started_at": _fmt_time(self.started_at),
+            "completed_at": _fmt_time(self.completed_at),
+            "estimated_completion": self.estimated_completion,
+            "log": self.log_json if isinstance(self.log_json, list) else (json.loads(self.log_json) if isinstance(self.log_json, str) else []),
+        }
+
+
 # ── Incident Comment Model ────────────────────────────────────
+
 class IncidentComment(Base):
     __tablename__ = "incident_comments"
 
