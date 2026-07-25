@@ -111,6 +111,8 @@ class Incident(Base):
     decision_graph_json = Column(Text, nullable=True)  # Direct Acyclic Graph structure of AI decisions
     recommended_runbooks_json = Column(Text, nullable=True)  # Ranked runbooks list
     attack_graph_json = Column(Text, nullable=True)  # Direct attack flow lateral movement representation JSON
+    is_simulated = Column(Boolean, default=False)
+    simulation_reason = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=_utcnow, index=True)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 

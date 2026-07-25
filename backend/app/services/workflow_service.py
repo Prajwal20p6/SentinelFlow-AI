@@ -543,7 +543,24 @@ def run_incident_workflow(
                     threats = wf_result.get("threats", {})
                     priority = wf_result.get("priority", {})
                     remediation = wf_result.get("remediation", {})
-                    
+
+                    is_sim = bool(
+                        wf_result.get("is_simulated") or
+                        rca.get("is_simulated") or
+                        threats.get("is_simulated") or
+                        priority.get("is_simulated") or
+                        remediation.get("is_simulated")
+                    )
+                    sim_reason = (
+                        wf_result.get("simulation_reason") or
+                        rca.get("simulation_reason") or
+                        threats.get("simulation_reason") or
+                        priority.get("simulation_reason") or
+                        remediation.get("simulation_reason")
+                    )
+
+                    incident.is_simulated = is_sim
+                    incident.simulation_reason = sim_reason
                     incident.root_cause_json = json.dumps(rca)
                     
                     priority_level = priority.get("priority_level", "P2")
@@ -564,6 +581,10 @@ def run_incident_workflow(
                     
                     incident.remediation_options_json = json.dumps(remediation.get("ranked_options", []))
                     db.commit()
+
+                    if is_sim:
+                        add_incident_log(db, incident.id, "MASTRA_SIMULATED", f"Mastra returned simulated fallback payload: {sim_reason}")
+
                     
                     add_incident_log(db, incident.id, "PROMPT_LOAD", "Mastra integration: CRISPE loaded.")
                     add_incident_log(db, incident.id, "RAG_RETRIEVAL", f"Mastra RAG runbooks fetched: {len(remediation.get('ranked_options', []))} options.")

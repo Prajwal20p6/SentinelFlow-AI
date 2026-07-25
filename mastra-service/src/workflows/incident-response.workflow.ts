@@ -1,3 +1,17 @@
+/**
+ * SentinelFlow AI — Incident Response Workflow
+ * 
+ * SIMULATION FALLBACK MECHANISM & DEMO CONTROL:
+ * To ensure graceful degradation, if any agent call fails (LLM timeout, API error, rate limit),
+ * the step catches the error and executes a structured mock generator function.
+ * Every fallback return includes `is_simulated: true` and `simulation_reason: string`.
+ * Successful live agent responses return `is_simulated: false` and `simulation_reason: null`.
+ * 
+ * DEMO & TESTING TRIGGER:
+ * Set `FORCE_SIMULATION=true` in the environment to intentionally force all workflow steps
+ * to execute their simulation fallback path for demonstration and testing purposes.
+ */
+
 import { Workflow, createStep } from "@mastra/core/workflows";
 import { rcaAgent, threatIntelAgent, remediationAgent, prioritizationAgent } from "../agents";
 
@@ -18,16 +32,18 @@ export const incidentResponseWorkflow = new Workflow({
 });
 
 // ── Simulation Fallback Generators ──────────────────────────
-function getMockRca(incident_type: string, incident_id: string) {
+export function getMockRca(incident_type: string, incident_id: string, reason?: string) {
   const type = (incident_type || "").toUpperCase();
   const timestamp = new Date().toISOString();
   const randomSuffix = Math.floor(Math.random() * 1000);
   const confidenceBase = 85 + Math.floor(Math.random() * 12);
+  const simReason = reason || "Live LLM agent call failed or fallback triggered";
   
+  let baseObj: any;
   if (type === "CPU_SPIKE") {
     const cpuValue = 85 + Math.floor(Math.random() * 14);
     const podName = `api-gateway-${randomSuffix}`;
-    return {
+    baseObj = {
       root_cause: `High CPU utilization (${cpuValue}%) detected on node-${randomSuffix % 10}/${podName} pod. Scale deployment to mitigate. Incident #${incident_id} at ${timestamp}.`,
       confidence: confidenceBase,
       evidence: [`CPU usage at ${cpuValue}%`, `Pod node scheduling latency increased to ${Math.floor(Math.random() * 500)}ms`, `Memory pressure at ${60 + Math.floor(Math.random() * 20)}%`],
@@ -36,7 +52,7 @@ function getMockRca(incident_type: string, incident_id: string) {
   } else if (type === "DISK_FULL") {
     const diskValue = 90 + Math.floor(Math.random() * 8);
     const volumeSize = 400 + Math.floor(Math.random() * 200);
-    return {
+    baseObj = {
       root_cause: `Storage space exceeded ${diskValue}% on infrastructure node-${randomSuffix % 10}. Clear persistent volume cache. Incident #${incident_id} at ${timestamp}. Volume: ${volumeSize}GB`,
       confidence: confidenceBase - 2,
       evidence: [`Disk capacity alert at ${diskValue}% of ${volumeSize}GB volume`, `Write latency increased to ${Math.floor(Math.random() * 100)}ms`],
@@ -46,7 +62,7 @@ function getMockRca(incident_type: string, incident_id: string) {
     const ipBytes = [198, 51, 100, 42].map((n, i) => i === 3 ? n + randomSuffix % 200 : n);
     const sourceIP = ipBytes.join('.');
     const attempts = 30 + Math.floor(Math.random() * 50);
-    return {
+    baseObj = {
       root_cause: `Repeated failed SSH login attempts detected from unrecognized host IP ${sourceIP}. Incident #${incident_id} at ${timestamp}.`,
       confidence: confidenceBase + 3,
       evidence: [`IP ${sourceIP} attempted ${attempts} failed login attempts in ${1 + Math.floor(Math.random() * 3)} minutes`, `User agent pattern matches known attack signatures`],
@@ -54,7 +70,7 @@ function getMockRca(incident_type: string, incident_id: string) {
     };
   } else if (type === "PHISHING_ATTACK") {
     const sourceIP = `103.45.${randomSuffix % 256}.${randomSuffix % 256}`;
-    return {
+    baseObj = {
       root_cause: `Simulated Office 365 phishing breach. PowerShell running, unusual logins from ${sourceIP}, database exfiltration. Incident #${incident_id} at ${timestamp}.`,
       confidence: confidenceBase,
       evidence: [`Unusual login from IP ${sourceIP}`, `Malicious PowerShell download execution from ${randomSuffix} domains`, `Database query volume increased by ${200 + Math.floor(Math.random() * 300)}%`],
@@ -63,7 +79,7 @@ function getMockRca(incident_type: string, incident_id: string) {
   } else if (type === "DDOS_ATTACK") {
     const reqPerSec = 10000 + Math.floor(Math.random() * 10000);
     const surgePercent = 300 + Math.floor(Math.random() * 300);
-    return {
+    baseObj = {
       root_cause: `Traffic volume surge of ${reqPerSec} req/sec from botnet IPs. Incident #${incident_id} at ${timestamp}.`,
       confidence: confidenceBase + 2,
       evidence: [`Ingress traffic surge of ${surgePercent}%`, `Botnet source IP identified in blocklists`, `Request latency increased to ${Math.floor(Math.random() * 5000)}ms`],
@@ -71,7 +87,7 @@ function getMockRca(incident_type: string, incident_id: string) {
     };
   } else if (type === "ERROR_RATE_SPIKE" || type === "ERROR_RATE") {
     const errorRate = 15 + Math.floor(Math.random() * 20);
-    return {
+    baseObj = {
       root_cause: `Application error rate spiked to ${errorRate}%. Regression error on latest deployment rollout version ${randomSuffix}. Incident #${incident_id} at ${timestamp}.`,
       confidence: confidenceBase - 3,
       evidence: [`HTTP 5xx errors reached ${errorRate}%`, `Error rate increased by ${200 + Math.floor(Math.random() * 400)}%`, `Affected endpoints: /api/v1/${randomSuffix}`],
@@ -79,7 +95,7 @@ function getMockRca(incident_type: string, incident_id: string) {
     };
   } else if (type === "MEMORY_EXHAUSTION") {
     const memValue = 85 + Math.floor(Math.random() * 12);
-    return {
+    baseObj = {
       root_cause: `Memory usage approached ${memValue}% limit. Potential memory leak identified on node processes. Incident #${incident_id} at ${timestamp}.`,
       confidence: confidenceBase - 1,
       evidence: [`Memory consumption at ${memValue}%`, `GC pause time increased to ${Math.floor(Math.random() * 500)}ms`, `Heap dump size: ${Math.floor(Math.random() * 500)}MB`],
@@ -87,7 +103,7 @@ function getMockRca(incident_type: string, incident_id: string) {
     };
   } else if (type === "HIGH_LATENCY") {
     const latencyValue = 3000 + Math.floor(Math.random() * 4000);
-    return {
+    baseObj = {
       root_cause: `HTTP latency spike above warning limits (${latencyValue}ms). CoreDNS queries experiencing connection timeouts. Incident #${incident_id} at ${timestamp}.`,
       confidence: confidenceBase - 5,
       evidence: [`Response time latency at ${latencyValue}ms`, `DNS query timeout rate: ${Math.floor(Math.random() * 30)}%`, `Network hop count increased to ${10 + Math.floor(Math.random() * 10)}`],
@@ -95,7 +111,7 @@ function getMockRca(incident_type: string, incident_id: string) {
     };
   } else if (type === "NETWORK_OUTAGE") {
     const packetLoss = 30 + Math.floor(Math.random() * 50);
-    return {
+    baseObj = {
       root_cause: `Network partition detected between availability zones. Packet loss at ${packetLoss}%. Service mesh proxy connectivity degraded. Incident #${incident_id} at ${timestamp}.`,
       confidence: confidenceBase - 2,
       evidence: [`Packet loss rate: ${packetLoss}%`, `Cross-AZ latency elevated to ${2000 + Math.floor(Math.random() * 3000)}ms`, `Service mesh proxy ${randomSuffix % 5} nodes unreachable`],
@@ -103,22 +119,31 @@ function getMockRca(incident_type: string, incident_id: string) {
     };
   } else {
     const sourceIP = `99.88.${randomSuffix % 256}.${randomSuffix % 256}`;
-    return {
+    baseObj = {
       root_cause: `Impossible travel login detected, database bulk download attempt from IP ${sourceIP}. Incident #${incident_id} at ${timestamp}.`,
       confidence: confidenceBase,
       evidence: [`Login from ${sourceIP}, bulk database download command matched`, `Geolocation distance: ${5000 + Math.floor(Math.random() * 5000)}km`, `Login time difference: ${Math.floor(Math.random() * 60)} minutes`],
       similar_incidents: [`INC-${1000 + randomSuffix}`]
     };
   }
+
+  return {
+    ...baseObj,
+    is_simulated: true,
+    simulation_reason: simReason,
+  };
 }
 
-function getMockThreat(incident_type: string, incident_id?: string) {
+export function getMockThreat(incident_type: string, incident_id?: string, reason?: string) {
   const type = (incident_type || "").toUpperCase();
   const rnd = Math.floor(Math.random() * 1000);
   const ts = new Date().toISOString();
   const conf = 85 + Math.floor(Math.random() * 12);
+  const simReason = reason || "Live LLM agent call failed or fallback triggered";
+  
+  let baseObj: any;
   if (type === "CPU_SPIKE" || type === "DISK_FULL") {
-    return {
+    baseObj = {
       threat_level: "low",
       risk_score: 5 + Math.floor(Math.random() * 15),
       iocs_found: [],
@@ -128,7 +153,7 @@ function getMockThreat(incident_type: string, incident_id?: string) {
     };
   } else if (type === "UNAUTHORIZED_ACCESS") {
     const ip = `198.51.${rnd % 256}.${rnd % 256}`;
-    return {
+    baseObj = {
       threat_level: "critical",
       risk_score: 85 + Math.floor(Math.random() * 12),
       iocs_found: [ip],
@@ -138,7 +163,7 @@ function getMockThreat(incident_type: string, incident_id?: string) {
     };
   } else if (type === "PHISHING_ATTACK") {
     const ip = `103.45.${rnd % 256}.${rnd % 256}`;
-    return {
+    baseObj = {
       threat_level: "high",
       risk_score: 78 + Math.floor(Math.random() * 15),
       iocs_found: [ip],
@@ -148,7 +173,7 @@ function getMockThreat(incident_type: string, incident_id?: string) {
     };
   } else if (type === "DDOS_ATTACK") {
     const ip = `185.${rnd % 256}.${rnd % 256}.${rnd % 256}`;
-    return {
+    baseObj = {
       threat_level: "critical",
       risk_score: 90 + Math.floor(Math.random() * 8),
       iocs_found: [ip],
@@ -157,7 +182,7 @@ function getMockThreat(incident_type: string, incident_id?: string) {
       confidence: conf + 2
     };
   } else if (type === "ERROR_RATE_SPIKE" || type === "ERROR_RATE") {
-    return {
+    baseObj = {
       threat_level: "low",
       risk_score: 8 + Math.floor(Math.random() * 12),
       iocs_found: [],
@@ -166,7 +191,7 @@ function getMockThreat(incident_type: string, incident_id?: string) {
       confidence: conf - 3
     };
   } else if (type === "MEMORY_EXHAUSTION") {
-    return {
+    baseObj = {
       threat_level: "low",
       risk_score: 5 + Math.floor(Math.random() * 10),
       iocs_found: [],
@@ -175,7 +200,7 @@ function getMockThreat(incident_type: string, incident_id?: string) {
       confidence: conf - 1
     };
   } else if (type === "HIGH_LATENCY") {
-    return {
+    baseObj = {
       threat_level: "low",
       risk_score: 12 + Math.floor(Math.random() * 15),
       iocs_found: [],
@@ -184,7 +209,7 @@ function getMockThreat(incident_type: string, incident_id?: string) {
       confidence: conf - 5
     };
   } else if (type === "NETWORK_OUTAGE") {
-    return {
+    baseObj = {
       threat_level: "medium",
       risk_score: 35 + Math.floor(Math.random() * 20),
       iocs_found: [],
@@ -194,7 +219,7 @@ function getMockThreat(incident_type: string, incident_id?: string) {
     };
   } else {
     const ip = `99.88.${rnd % 256}.${rnd % 256}`;
-    return {
+    baseObj = {
       threat_level: "critical",
       risk_score: 80 + Math.floor(Math.random() * 15),
       iocs_found: [ip],
@@ -203,15 +228,24 @@ function getMockThreat(incident_type: string, incident_id?: string) {
       confidence: conf
     };
   }
+
+  return {
+    ...baseObj,
+    is_simulated: true,
+    simulation_reason: simReason,
+  };
 }
 
-function getMockPriority(incident_type: string, incident_id?: string) {
+export function getMockPriority(incident_type: string, incident_id?: string, reason?: string) {
   const type = (incident_type || "").toUpperCase();
   const rnd = Math.floor(Math.random() * 1000);
   const ts = new Date().toISOString();
+  const simReason = reason || "Live LLM agent call failed or fallback triggered";
+  
+  let baseObj: any;
   if (type === "CPU_SPIKE") {
     const affected = 500 + Math.floor(Math.random() * 3000);
-    return {
+    baseObj = {
       priority_level: "P1",
       sla_minutes: 20 + Math.floor(Math.random() * 20),
       justification: `Critical API gateway performance degradation. ${affected} users affected. (Inc #${incident_id || rnd}, ${ts})`,
@@ -219,7 +253,7 @@ function getMockPriority(incident_type: string, incident_id?: string) {
     };
   } else if (type === "DISK_FULL") {
     const affected = 100 + Math.floor(Math.random() * 400);
-    return {
+    baseObj = {
       priority_level: "P2",
       sla_minutes: 45 + Math.floor(Math.random() * 30),
       justification: `PostgreSQL storage pool pressure warning. ${affected} users affected. (Inc #${incident_id || rnd}, ${ts})`,
@@ -227,7 +261,7 @@ function getMockPriority(incident_type: string, incident_id?: string) {
     };
   } else if (type === "UNAUTHORIZED_ACCESS") {
     const affected = 2000 + Math.floor(Math.random() * 8000);
-    return {
+    baseObj = {
       priority_level: "P0",
       sla_minutes: 10 + Math.floor(Math.random() * 10),
       justification: `Active server brute force infiltration attempt. ${affected} users at risk. (Inc #${incident_id || rnd}, ${ts})`,
@@ -235,7 +269,7 @@ function getMockPriority(incident_type: string, incident_id?: string) {
     };
   } else if (type === "PHISHING_ATTACK") {
     const affected = 3000 + Math.floor(Math.random() * 5000);
-    return {
+    baseObj = {
       priority_level: "P0",
       sla_minutes: 10 + Math.floor(Math.random() * 10),
       justification: `Phishing breach with credential compromise. ${affected} users affected. (Inc #${incident_id || rnd}, ${ts})`,
@@ -243,7 +277,7 @@ function getMockPriority(incident_type: string, incident_id?: string) {
     };
   } else if (type === "DDOS_ATTACK") {
     const affected = 5000 + Math.floor(Math.random() * 10000);
-    return {
+    baseObj = {
       priority_level: "P0",
       sla_minutes: 5 + Math.floor(Math.random() * 10),
       justification: `DDoS attack causing service degradation. ${affected} users affected. (Inc #${incident_id || rnd}, ${ts})`,
@@ -251,7 +285,7 @@ function getMockPriority(incident_type: string, incident_id?: string) {
     };
   } else if (type === "ERROR_RATE_SPIKE" || type === "ERROR_RATE") {
     const affected = 1000 + Math.floor(Math.random() * 3000);
-    return {
+    baseObj = {
       priority_level: "P1",
       sla_minutes: 25 + Math.floor(Math.random() * 20),
       justification: `Customer facing transaction processing errors escalated. ${affected} users affected. (Inc #${incident_id || rnd}, ${ts})`,
@@ -259,7 +293,7 @@ function getMockPriority(incident_type: string, incident_id?: string) {
     };
   } else if (type === "MEMORY_EXHAUSTION") {
     const affected = 200 + Math.floor(Math.random() * 800);
-    return {
+    baseObj = {
       priority_level: "P2",
       sla_minutes: 45 + Math.floor(Math.random() * 30),
       justification: `Pod memory pool warning limits reached. ${affected} users affected. (Inc #${incident_id || rnd}, ${ts})`,
@@ -267,7 +301,7 @@ function getMockPriority(incident_type: string, incident_id?: string) {
     };
   } else if (type === "HIGH_LATENCY") {
     const affected = 500 + Math.floor(Math.random() * 2000);
-    return {
+    baseObj = {
       priority_level: "P2",
       sla_minutes: 40 + Math.floor(Math.random() * 30),
       justification: `Response delay affecting client endpoints. ${affected} users affected. (Inc #${incident_id || rnd}, ${ts})`,
@@ -275,7 +309,7 @@ function getMockPriority(incident_type: string, incident_id?: string) {
     };
   } else if (type === "NETWORK_OUTAGE") {
     const affected = 3000 + Math.floor(Math.random() * 7000);
-    return {
+    baseObj = {
       priority_level: "P1",
       sla_minutes: 15 + Math.floor(Math.random() * 15),
       justification: `Cross-availability-zone network partition affecting service mesh connectivity. ${affected} users impacted. (Inc #${incident_id || rnd}, ${ts})`,
@@ -283,23 +317,32 @@ function getMockPriority(incident_type: string, incident_id?: string) {
     };
   } else {
     const affected = 5000 + Math.floor(Math.random() * 10000);
-    return {
+    baseObj = {
       priority_level: "P0",
       sla_minutes: 10 + Math.floor(Math.random() * 10),
       justification: `Potential data exfiltration / breach attempt. ${affected} users at risk. (Inc #${incident_id || rnd}, ${ts})`,
       business_impact: { affected_users: affected, risk: "CRITICAL", revenue_impact_usd: affected * (5 + Math.floor(Math.random() * 10)) }
     };
   }
+
+  return {
+    ...baseObj,
+    is_simulated: true,
+    simulation_reason: simReason,
+  };
 }
 
-function getMockRemediation(incident_type: string, incident_id?: string) {
+export function getMockRemediation(incident_type: string, incident_id?: string, reason?: string) {
   const type = (incident_type || "").toUpperCase();
   const rnd = Math.floor(Math.random() * 1000);
   const ts = new Date().toISOString();
   const conf = 82 + Math.floor(Math.random() * 15);
+  const simReason = reason || "Live LLM agent call failed or fallback triggered";
+  
+  let baseObj: any;
   if (type === "CPU_SPIKE") {
     const replicas = 2 + Math.floor(Math.random() * 6);
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl scale deployment api-gateway --replicas=${replicas}`,
         name: `Scale api-gateway to ${replicas} replicas`,
@@ -341,7 +384,7 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
       rollback_plan: `kubectl scale deployment api-gateway --replicas=1`
     };
   } else if (type === "DISK_FULL") {
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl exec ${incident_id ? `pod-${incident_id}` : 'postgres-primary'} -- df -h`,
         name: "Disk diagnostics on primary",
@@ -374,7 +417,7 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
       rollback_plan: "No rollback required for safe diagnostics"
     };
   } else if (type === "UNAUTHORIZED_ACCESS") {
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl delete pod auth-service-${(rnd % 9000) + 1000}`,
         name: "Terminate compromised auth pod",
@@ -407,7 +450,7 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
       rollback_plan: "Pod will auto-recreate via ReplicaSet"
     };
   } else if (type === "PHISHING_ATTACK") {
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl delete pod identity-provider-${(rnd % 9000) + 1000}`,
         name: "Rotate identity provider pod",
@@ -432,7 +475,7 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
     };
   } else if (type === "DDOS_ATTACK") {
     const replicas = 3 + Math.floor(Math.random() * 5);
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl scale deployment ingress-gateway --replicas=${replicas}`,
         name: `Scale ingress-gateway to ${replicas} replicas`,
@@ -456,7 +499,7 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
       rollback_plan: `kubectl scale deployment ingress-gateway --replicas=1`
     };
   } else if (type === "ERROR_RATE_SPIKE" || type === "ERROR_RATE") {
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl rollout undo deployment/${incident_id ? `svc-${incident_id}` : 'mock-service'}`,
         name: "Rollback last deployment",
@@ -489,7 +532,7 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
       rollback_plan: "No rollback required for code reversion"
     };
   } else if (type === "MEMORY_EXHAUSTION") {
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl rollout restart deployment/${incident_id ? `svc-${incident_id}` : 'mock-service'}`,
         name: "Restart to clear memory leak",
@@ -522,7 +565,7 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
       rollback_plan: "Pod will auto-recreate via ReplicaSet"
     };
   } else if (type === "HIGH_LATENCY") {
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl rollout restart deployment/coredns -n kube-system`,
         name: "Restart CoreDNS",
@@ -555,7 +598,7 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
       rollback_plan: "No rollback required for safe CoreDNS reset"
     };
   } else if (type === "NETWORK_OUTAGE") {
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl rollout restart daemonset/service-mesh-proxy -n kube-system`,
         name: "Restart service mesh proxy daemonset",
@@ -588,7 +631,7 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
       rollback_plan: "Service mesh proxy auto-recovers; CoreDNS restarts restore DNS resolution"
     };
   } else {
-    return {
+    baseObj = {
       recommended_option: {
         action: `kubectl delete pod database-primary-${(rnd % 9000) + 1000}`,
         name: "Isolate compromised database pod",
@@ -612,6 +655,12 @@ function getMockRemediation(incident_type: string, incident_id?: string) {
       rollback_plan: "Pod auto-recreates via ReplicaSet"
     };
   }
+
+  return {
+    ...baseObj,
+    is_simulated: true,
+    simulation_reason: simReason,
+  };
 }
 
 // Step 1: Root Cause Analysis
@@ -627,12 +676,19 @@ Metrics available: ${Object.keys(incident.metrics || {}).join(", ")}
 Logs entries: ${(incident.logs || []).length} entries`;
 
     try {
+      if (process.env.FORCE_SIMULATION === "true") {
+        throw new Error("Forced simulation via FORCE_SIMULATION=true environment variable");
+      }
       const result = await rcaAgent.generate(prompt);
       const rca_result = typeof result.text === "string" ? JSON.parse(result.text) : result.text;
-      return rca_result;
-    } catch (err) {
+      return {
+        ...rca_result,
+        is_simulated: false,
+        simulation_reason: null,
+      };
+    } catch (err: any) {
       console.warn("RCA Agent failed, running simulation fallback:", err);
-      return getMockRca(incident.incident_type, incident.incident_id);
+      return getMockRca(incident.incident_type, incident.incident_id, err?.message || String(err));
     }
   }
 });
@@ -650,12 +706,19 @@ Root Cause: ${JSON.stringify(rca_result)}
 Look for IOCs (IPs, domains, hashes, URLs, emails) and check threat databases`;
 
     try {
+      if (process.env.FORCE_SIMULATION === "true") {
+        throw new Error("Forced simulation via FORCE_SIMULATION=true environment variable");
+      }
       const result = await threatIntelAgent.generate(prompt);
       const threat_result = typeof result.text === "string" ? JSON.parse(result.text) : result.text;
-      return threat_result;
-    } catch (err) {
+      return {
+        ...threat_result,
+        is_simulated: false,
+        simulation_reason: null,
+      };
+    } catch (err: any) {
       console.warn("Threat Intel Agent failed, running simulation fallback:", err);
-      return getMockThreat(incident.incident_type, incident.incident_id);
+      return getMockThreat(incident.incident_type, incident.incident_id, err?.message || String(err));
     }
   }
 });
@@ -676,12 +739,19 @@ Threat Level: ${threat_result?.threat_level || "unknown"}
 Affected Services: ${JSON.stringify(incident.alert_data)}`;
 
     try {
+      if (process.env.FORCE_SIMULATION === "true") {
+        throw new Error("Forced simulation via FORCE_SIMULATION=true environment variable");
+      }
       const result = await prioritizationAgent.generate(prompt);
       const priority_result = typeof result.text === "string" ? JSON.parse(result.text) : result.text;
-      return priority_result;
-    } catch (err) {
+      return {
+        ...priority_result,
+        is_simulated: false,
+        simulation_reason: null,
+      };
+    } catch (err: any) {
       console.warn("Prioritization Agent failed, running simulation fallback:", err);
-      return getMockPriority(incident.incident_type, incident.incident_id);
+      return getMockPriority(incident.incident_type, incident.incident_id, err?.message || String(err));
     }
   }
 });
@@ -705,12 +775,19 @@ Business Impact: ${JSON.stringify(priority_result?.business_impact || {})}
 Suggest multiple remediation options ranked by safety and effectiveness.`;
 
     try {
+      if (process.env.FORCE_SIMULATION === "true") {
+        throw new Error("Forced simulation via FORCE_SIMULATION=true environment variable");
+      }
       const result = await remediationAgent.generate(prompt);
       const remediation_options = typeof result.text === "string" ? JSON.parse(result.text) : result.text;
-      return remediation_options;
-    } catch (err) {
+      return {
+        ...remediation_options,
+        is_simulated: false,
+        simulation_reason: null,
+      };
+    } catch (err: any) {
       console.warn("Remediation Agent failed, running simulation fallback:", err);
-      return getMockRemediation(incident.incident_type, incident.incident_id);
+      return getMockRemediation(incident.incident_type, incident.incident_id, err?.message || String(err));
     }
   }
 });
@@ -721,18 +798,34 @@ const workflow_complete = createStep({
   description: "Workflow execution complete",
   execute: async ({ getInitData, getStepResult }) => {
     const incident = getInitData() as IncidentData;
-    const rca_result = getStepResult("analyze_root_cause");
-    const threat_result = getStepResult("enrich_threat_intel");
-    const priority_result = getStepResult("prioritize_incident");
-    const remediation_options = getStepResult("plan_remediation");
+    const rca = getStepResult("analyze_root_cause") as any;
+    const threats = getStepResult("enrich_threat_intel") as any;
+    const priority = getStepResult("prioritize_incident") as any;
+    const remediation = getStepResult("plan_remediation") as any;
+
+    const is_simulated = Boolean(
+      rca?.is_simulated ||
+      threats?.is_simulated ||
+      priority?.is_simulated ||
+      remediation?.is_simulated
+    );
+
+    const simulation_reason =
+      rca?.simulation_reason ||
+      threats?.simulation_reason ||
+      priority?.simulation_reason ||
+      remediation?.simulation_reason ||
+      null;
 
     return {
       status: "completed",
       incident_id: incident.incident_id,
-      rca: rca_result,
-      threats: threat_result,
-      priority: priority_result,
-      remediation: remediation_options
+      is_simulated,
+      simulation_reason,
+      rca,
+      threats,
+      priority,
+      remediation
     };
   }
 });

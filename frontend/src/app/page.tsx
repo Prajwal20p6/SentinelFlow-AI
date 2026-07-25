@@ -5707,7 +5707,28 @@ export default function Home() {
                 })();
                 return (
                   <>
+                    {/* Simulated Fallback Warning Banner */}
+                    {(mastraExecution?.is_simulated || mastraExecution?.incident?.is_simulated || mastraExecution?.rca?.is_simulated || mastraExecution?.result?.is_simulated || mastraExecution?.threats?.is_simulated || mastraExecution?.remediation?.is_simulated) && (
+                      <div className="p-4 bg-amber-500/15 border border-amber-500/40 rounded-xl flex items-center justify-between gap-4 text-amber-300">
+                        <div className="flex items-center gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />
+                          <div>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-200">
+                              ⚠ Simulated Fallback Active — Live Agent Call Failed
+                            </h4>
+                            <p className="text-xs text-amber-300/80 font-mono mt-0.5">
+                              Reason: {mastraExecution?.simulation_reason || mastraExecution?.incident?.simulation_reason || mastraExecution?.rca?.simulation_reason || mastraExecution?.result?.simulation_reason || "Live LLM agent call threw an exception or was forced."}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-md text-[10px] font-mono uppercase font-bold shrink-0">
+                          SIMULATED DATA
+                        </span>
+                      </div>
+                    )}
+
                     {/* Incident Info Cards */}
+
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <div className="card p-4">
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Incident</p>
