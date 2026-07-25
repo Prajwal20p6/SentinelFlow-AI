@@ -19,8 +19,8 @@ SentinelFlow AI provides setup automation scripts to configure virtual environme
 
 1. **Clone the repository**:
    ```powershell
-   git clone https://github.com/hidevs-hackathon/sentinelflow-ai.git
-   cd sentinelflow-ai
+   git clone https://github.com/Prajwal20p6/SentinelFlow-AI.git
+   cd SentinelFlow-AI
    ```
 2. **Execute the Setup Script**:
    Installs python modules, initializes the SQLite database schema, and seeds default CRISPE prompt templates:

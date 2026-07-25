@@ -136,7 +136,7 @@ Use these preconfigured user accounts to log in:
 |---|---|---|
 | `admin@sentinelflow.ai` | `admin123` | Administrator (Full access) |
 | `engineer@sentinelflow.ai` | `eng123` | SRE Engineer (Can execute actions) |
-| `judge@sentinelflow.ai` | `judgepass123!` | Hackathon Judge Console |
+| `judge@sentinelflow.ai` | `JudgeDemo123!` | Hackathon Judge Console |
 
 ### Resetting database state
 If you wish to clear all logs, mock incidents, and restore default seeded users, run the database initializer flag again:
