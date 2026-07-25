@@ -1,10 +1,17 @@
 import pytest
 import json
+from unittest.mock import patch, MagicMock
 from app.services.memory_service import store_memory, retrieve_memory, update_memory, clear_memory, MEMORY_FALLBACK
 from app.services.rca_service import run_root_cause_analysis
 from app.services.threat_intel_service import auto_enrich_incident_threats
 from app.services.workflow_service import run_incident_workflow
 from app.models.models import Incident, TimelineEvent, IncidentLog, MastraWorkflowState
+
+@pytest.fixture(autouse=True)
+def isolate_memory_services():
+    """Ensure memory services run in isolated test cache mode without network Qdrant calls."""
+    with patch("app.services.memory_service.qdrant_client", None):
+        yield
 
 def test_memory_crud_operations():
     # 1. Clear any remnants
@@ -112,4 +119,3 @@ def test_agent_shared_memory_collaboration(db_session):
     ).first()
     assert sync_event is not None
     assert "Retrieved" in sync_event.title and "shared team memories" in sync_event.title
-

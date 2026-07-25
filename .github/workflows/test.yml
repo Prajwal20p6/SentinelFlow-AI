@@ -24,10 +24,16 @@ jobs:
         pip install -r backend/requirements.txt
         pip install -r backend/requirements-dev.txt
         
-    - name: Run Pytest
+    - name: Run Pytest with Coverage Gate
       run: |
         cd backend
-        pytest --cov=app --cov-report=xml
+        pytest --cov=app --cov-report=xml --cov-fail-under=68
+
+    - name: Upload Coverage Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-coverage-report
+        path: backend/coverage.xml
         
   frontend-tests:
     runs-on: ubuntu-latest

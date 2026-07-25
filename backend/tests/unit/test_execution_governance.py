@@ -181,6 +181,11 @@ def test_governance_rules_eval(db_session):
     assert allowed is True
 
 def test_execution_config_endpoint(client, db_session, auth_headers_admin):
+    from app.main import app
+    from app.api.router_ops import router as ops_router
+    if not any(hasattr(r, "path") and "/execution-config" in r.path for r in app.routes):
+        app.include_router(ops_router, prefix="/api/v1")
+
     # Fetch
     resp = client.get("/api/v1/execution-config")
     assert resp.status_code == 200

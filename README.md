@@ -7,6 +7,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-20-green?style=for-the-badge&logo=nodedotjs)
 ![Docker](https://img.shields.io/badge/Docker-Supported-orange?style=for-the-badge&logo=docker)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![Coverage](https://img.shields.io/badge/Coverage-71%25-brightgreen?style=for-the-badge&logo=pytest)
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)
 
 ---

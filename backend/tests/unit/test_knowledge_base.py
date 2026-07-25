@@ -1,7 +1,14 @@
 import pytest
+from unittest.mock import patch, MagicMock
 from app.models.models import KnowledgeDocument, User
 from app.services.knowledge_service import KnowledgeBaseService
 from app.core.security import hash_password
+
+@pytest.fixture(autouse=True)
+def mock_knowledge_vector_store():
+    """Mock vector store indexing for knowledge base unit tests."""
+    with patch("app.services.knowledge_service.qdrant_client", None):
+        yield
 
 @pytest.fixture
 def auth_headers_admin(client, db_session):
