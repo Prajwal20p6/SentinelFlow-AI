@@ -86,30 +86,54 @@ import {
 } from 'recharts';
 
 
+import { useAuthStore } from '../store/authStore';
+import { useIncidentStore } from '../store/incidentStore';
+import { usePostmortemStore } from '../store/postmortemStore';
+import { usePlaybookStore } from '../store/playbookStore';
+import { useMastraStore } from '../store/mastraStore';
+import { useLiveStore } from '../store/liveStore';
+
 export default function Home() {
-  // ── Authentication State ─────────────────────────────────────
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [email, setEmail] = useState('admin@sentinelflow.ai');
-  const [password, setPassword] = useState('admin123');
-  const [mfaRequired, setMfaRequired] = useState(false);
-  const [mfaToken, setMfaToken] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authView, setAuthView] = useState<'login' | 'register' | 'forgot' | 'reset' | 'reset_password_final'>('login');
-  const [regFullName, setRegFullName] = useState('');
-  const [regOrgId, setRegOrgId] = useState('');
-  const [regRole, setRegRole] = useState('responder');
-  const [resetToken, setResetToken] = useState('');
-  const [resetSuccessMsg, setResetSuccessMsg] = useState('');
-  const [sessions, setSessions] = useState<any[]>([]);
+
+
+
+
+  // ── Authentication State (Zustand Store) ─────────────────────
+  const {
+    isLoggedIn, setIsLoggedIn,
+    user, setUser,
+    email, setEmail,
+    password, setPassword,
+    mfaRequired, setMfaRequired,
+    mfaToken, setMfaToken,
+    authError, setAuthError,
+    authLoading, setAuthLoading,
+    authView, setAuthView,
+    regFullName, setRegFullName,
+    regOrgId, setRegOrgId,
+    regRole, setRegRole,
+    resetToken, setResetToken,
+    resetSuccessMsg, setResetSuccessMsg,
+    sessions, setSessions,
+  } = useAuthStore();
+
+  // ── Incidents & Topology State (Zustand Store) ────────────────
+  const {
+    incidents, setIncidents,
+    selectedIncident, setSelectedIncident,
+    topology, setTopology,
+    selectedPod, setSelectedPod,
+    auditEntries, setAuditEntries,
+    prompts, setPrompts,
+    globalStatus, setGlobalStatus,
+    serverHealth, setServerHealth,
+    activeIncidentCount, setActiveIncidentCount,
+    circuitBreakers, setCircuitBreakers,
+  } = useIncidentStore();
 
   // ── Application Navigation State ─────────────────────────────
   const [activeTab, setActiveTab] = useState<NavSection>('dashboard');
 
-  // ── Data State ────────────────────────────────────────────────
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [selectedIncident, setSelectedIncident] = useState<IncidentDetail | null>(null);
   const explainabilityReport = (() => {
     if (!selectedIncident?.explainability_json) return null;
     try {
@@ -118,38 +142,27 @@ export default function Home() {
       return null;
     }
   })();
-  const [topology, setTopology] = useState<ClusterTopology | null>(null);
-  const [selectedPod, setSelectedPod] = useState<PodInfo | null>(null);
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
-  const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
 
-  // ── WebSocket Real-Time Progress State ────────────────────────
-  const [activeAgents, setActiveAgents] = useState<Record<number, {
-    agent_name: string;
-    status: string;
-    progress: number;
-    message: string;
-    details: any;
-    timestamp: string;
-  }>>({});
+  // ── WebSocket Real-Time Progress State (Zustand Store) ────────
+  const {
+    activeAgents, setActiveAgents,
+    agentActivitiesLog, setAgentActivitiesLog,
+    workflowProgress, setWorkflowProgress,
+    obsSummary, setObsSummary,
+    obsTraces, setObsTraces,
+    notifications, setNotifications,
+    liveMetrics, setLiveMetrics,
+    metricsHistory, setMetricsHistory,
+    metricsAnnotations, setMetricsAnnotations,
+    metricsLoading, setMetricsLoading,
+    selectedMetricService, setSelectedMetricService,
+    replayEvents, setReplayEvents,
+    isPlayingReplay, setIsPlayingReplay,
+    replayIndex, setReplayIndex,
+    replaySpeed, setReplaySpeed,
+    replayIntervalId, setReplayIntervalId,
+  } = useLiveStore();
 
-  const [agentActivitiesLog, setAgentActivitiesLog] = useState<Record<number, Array<{
-    agent_name: string;
-    status: string;
-    progress: number;
-    message: string;
-    details: any;
-    timestamp: string;
-  }>>>({});
-
-  const [workflowProgress, setWorkflowProgress] = useState<Record<number, {
-    current_step: number;
-    total_steps: number;
-    step_name: string;
-    step_status: string;
-    estimated_completion?: string;
-    timestamp: string;
-  }>>({});
 
   // ── WebSocket Subscriptions ──
   useWebSocket('AgentActivity', (data) => {
@@ -296,10 +309,6 @@ export default function Home() {
     }
   });
 
-  const [obsSummary, setObsSummary] = useState<ObservabilitySummary | null>(null);
-  const [obsTraces, setObsTraces] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
-
 
   // ── Executive Dashboard State ────────────────────────────────
   const [executiveMetrics, setExecutiveMetrics] = useState<any>(null);
@@ -324,22 +333,20 @@ export default function Home() {
   
   // ── SRE Inspector & Replay Engine UI Hook States ────────────
   const [inspectorTab, setInspectorTab] = useState<'timeline' | 'simulation' | 'options' | 'runbooks' | 'graph' | 'replay' | 'attack' | 'postmortem'>('timeline');
-  const [replayEvents, setReplayEvents] = useState<any[]>([]);
-  const [isPlayingReplay, setIsPlayingReplay] = useState(false);
-  const [replayIndex, setReplayIndex] = useState(-1);
-  const [replaySpeed, setReplaySpeed] = useState<1 | 5 | 10>(1);
-  const [replayIntervalId, setReplayIntervalId] = useState<any>(null);
-
-  // ── Postmortem Report State ─────────────────────────────────
-  const [postmortemData, setPostmortemData] = useState<any>(null);
-  const [postmortemLoading, setPostmortemLoading] = useState(false);
-  const [postmortemGenerating, setPostmortemGenerating] = useState(false);
-  const [simulationData, setSimulationData] = useState<any>(null);
-  const [remediationOptions, setRemediationOptions] = useState<any[]>([]);
-  const [decisionGraph, setDecisionGraph] = useState<any>(null);
-  const [runbooks, setRunbooks] = useState<any[]>([]);
-  const [runbookFeedbackMsg, setRunbookFeedbackMsg] = useState('');
-  const [simulationLoading, setSimulationLoading] = useState(false);
+  // ── Postmortem & Analysis State (Zustand Store) ────────────
+  const {
+    postmortemData, setPostmortemData,
+    postmortemLoading, setPostmortemLoading,
+    postmortemGenerating, setPostmortemGenerating,
+    simulationData, setSimulationData,
+    simulationLoading, setSimulationLoading,
+    remediationOptions, setRemediationOptions,
+    decisionGraph, setDecisionGraph,
+    runbooks, setRunbooks,
+    runbookFeedbackMsg, setRunbookFeedbackMsg,
+    postmortemPdfDownloading, setPostmortemPdfDownloading,
+    postmortemPdfError, setPostmortemPdfError,
+  } = usePostmortemStore();
 
   // ── Knowledge Base UI States ──────────────────────────────
   const [knowledgeDocs, setKnowledgeDocs] = useState<any[]>([]);
@@ -376,20 +383,15 @@ export default function Home() {
   const [demoLoading, setDemoLoading] = useState(false);
   const [demoResultMsg, setDemoResultMsg] = useState('');
 
-  // ── Phase 57: Live Cluster Metrics Dashboard State ───────────
-  const [liveMetrics, setLiveMetrics] = useState<any>(null);
-  const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
-  const [metricsAnnotations, setMetricsAnnotations] = useState<any[]>([]);
-  const [metricsLoading, setMetricsLoading] = useState(false);
-  const [selectedMetricService, setSelectedMetricService] = useState<string | null>(null);
-
-  // ── Phase 58: Playbook Execution Tracking State ──────────────
-  const [playbookExecutions, setPlaybookExecutions] = useState<any[]>([]);
-  const [selectedExecution, setSelectedExecution] = useState<any | null>(null);
-  const [playbookName, setPlaybookName] = useState('Standard Kubernetes Recovery Playbook');
-  const [playbookTargetIncident, setPlaybookTargetIncident] = useState<number | null>(null);
-  const [playbookLoading, setPlaybookLoading] = useState(false);
-  const [playbookMsg, setPlaybookMsg] = useState('');
+  // ── Phase 58: Playbook Execution Tracking State (Zustand Store) ──
+  const {
+    playbookExecutions, setPlaybookExecutions,
+    selectedExecution, setSelectedExecution,
+    playbookName, setPlaybookName,
+    playbookTargetIncident, setPlaybookTargetIncident,
+    playbookLoading, setPlaybookLoading,
+    playbookMsg, setPlaybookMsg,
+  } = usePlaybookStore();
 
 
   const triggerDemoScenario = async (scenario: string): Promise<number | null> => {
@@ -465,17 +467,13 @@ export default function Home() {
     }
   };
 
-  // ── Global Status State ──────────────────────────────────────
-  const [globalStatus, setGlobalStatus] = useState<'SECURE' | 'THREAT_DETECTED' | 'DISRUPTED'>('SECURE');
-  const [serverHealth, setServerHealth] = useState<any>(null);
-  const [activeIncidentCount, setActiveIncidentCount] = useState(0);
-  const [circuitBreakers, setCircuitBreakers] = useState<any>({});
-
-  // ── Mastra Execution Monitor State ─────────────────────────
-  const [mastraEvents, setMastraEvents] = useState<any[]>([]);
-  const [mastraExecution, setMastraExecution] = useState<any>(null);
-  const [mastraSelectedId, setMastraSelectedId] = useState<number | null>(null);
-  const [mastraLoading, setMastraLoading] = useState(false);
+  // ── Mastra Execution Monitor State (Zustand Store) ─────────
+  const {
+    mastraEvents, setMastraEvents,
+    mastraExecution, setMastraExecution,
+    mastraSelectedId, setMastraSelectedId,
+    mastraLoading, setMastraLoading,
+  } = useMastraStore();
 
   const STEP_KEYS = ['DETECT_ANOMALY','RETRIEVE_CONTEXT','RETRIEVE_RUNBOOKS','PLAN_REMEDIATION','CONTRADICTION_CHECK','VALIDATE','APPROVE_DECISION','EXECUTE_REMEDIATION'];
   const STEP_LABELS: Record<string, string> = {
