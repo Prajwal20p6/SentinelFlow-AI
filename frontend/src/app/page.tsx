@@ -88,8 +88,10 @@ import {
 
 import { useAuthStore } from '../store/authStore';
 import { useIncidentStore } from '../store/incidentStore';
+import { usePostmortemStore } from '../store/postmortemStore';
 
 export default function Home() {
+
   // ── Authentication State (Zustand Store) ─────────────────────
   const {
     isLoggedIn, setIsLoggedIn,
@@ -342,16 +344,20 @@ export default function Home() {
   const [replaySpeed, setReplaySpeed] = useState<1 | 5 | 10>(1);
   const [replayIntervalId, setReplayIntervalId] = useState<any>(null);
 
-  // ── Postmortem Report State ─────────────────────────────────
-  const [postmortemData, setPostmortemData] = useState<any>(null);
-  const [postmortemLoading, setPostmortemLoading] = useState(false);
-  const [postmortemGenerating, setPostmortemGenerating] = useState(false);
-  const [simulationData, setSimulationData] = useState<any>(null);
-  const [remediationOptions, setRemediationOptions] = useState<any[]>([]);
-  const [decisionGraph, setDecisionGraph] = useState<any>(null);
-  const [runbooks, setRunbooks] = useState<any[]>([]);
-  const [runbookFeedbackMsg, setRunbookFeedbackMsg] = useState('');
-  const [simulationLoading, setSimulationLoading] = useState(false);
+  // ── Postmortem & Analysis State (Zustand Store) ────────────
+  const {
+    postmortemData, setPostmortemData,
+    postmortemLoading, setPostmortemLoading,
+    postmortemGenerating, setPostmortemGenerating,
+    simulationData, setSimulationData,
+    simulationLoading, setSimulationLoading,
+    remediationOptions, setRemediationOptions,
+    decisionGraph, setDecisionGraph,
+    runbooks, setRunbooks,
+    runbookFeedbackMsg, setRunbookFeedbackMsg,
+    postmortemPdfDownloading, setPostmortemPdfDownloading,
+    postmortemPdfError, setPostmortemPdfError,
+  } = usePostmortemStore();
 
   // ── Knowledge Base UI States ──────────────────────────────
   const [knowledgeDocs, setKnowledgeDocs] = useState<any[]>([]);
