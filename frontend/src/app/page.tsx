@@ -90,8 +90,10 @@ import { useAuthStore } from '../store/authStore';
 import { useIncidentStore } from '../store/incidentStore';
 import { usePostmortemStore } from '../store/postmortemStore';
 import { usePlaybookStore } from '../store/playbookStore';
+import { useMastraStore } from '../store/mastraStore';
 
 export default function Home() {
+
 
 
   // ── Authentication State (Zustand Store) ─────────────────────
@@ -487,11 +489,13 @@ export default function Home() {
     }
   };
 
-  // ── Mastra Execution Monitor State ─────────────────────────
-  const [mastraEvents, setMastraEvents] = useState<any[]>([]);
-  const [mastraExecution, setMastraExecution] = useState<any>(null);
-  const [mastraSelectedId, setMastraSelectedId] = useState<number | null>(null);
-  const [mastraLoading, setMastraLoading] = useState(false);
+  // ── Mastra Execution Monitor State (Zustand Store) ─────────
+  const {
+    mastraEvents, setMastraEvents,
+    mastraExecution, setMastraExecution,
+    mastraSelectedId, setMastraSelectedId,
+    mastraLoading, setMastraLoading,
+  } = useMastraStore();
 
   const STEP_KEYS = ['DETECT_ANOMALY','RETRIEVE_CONTEXT','RETRIEVE_RUNBOOKS','PLAN_REMEDIATION','CONTRADICTION_CHECK','VALIDATE','APPROVE_DECISION','EXECUTE_REMEDIATION'];
   const STEP_LABELS: Record<string, string> = {
