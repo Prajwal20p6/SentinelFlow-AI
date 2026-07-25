@@ -87,6 +87,7 @@ import {
 
 
 import { useAuthStore } from '../store/authStore';
+import { useIncidentStore } from '../store/incidentStore';
 
 export default function Home() {
   // ── Authentication State (Zustand Store) ─────────────────────
@@ -108,12 +109,23 @@ export default function Home() {
     sessions, setSessions,
   } = useAuthStore();
 
+  // ── Incidents & Topology State (Zustand Store) ────────────────
+  const {
+    incidents, setIncidents,
+    selectedIncident, setSelectedIncident,
+    topology, setTopology,
+    selectedPod, setSelectedPod,
+    auditEntries, setAuditEntries,
+    prompts, setPrompts,
+    globalStatus, setGlobalStatus,
+    serverHealth, setServerHealth,
+    activeIncidentCount, setActiveIncidentCount,
+    circuitBreakers, setCircuitBreakers,
+  } = useIncidentStore();
+
   // ── Application Navigation State ─────────────────────────────
   const [activeTab, setActiveTab] = useState<NavSection>('dashboard');
 
-  // ── Data State ────────────────────────────────────────────────
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [selectedIncident, setSelectedIncident] = useState<IncidentDetail | null>(null);
   const explainabilityReport = (() => {
     if (!selectedIncident?.explainability_json) return null;
     try {
@@ -122,10 +134,6 @@ export default function Home() {
       return null;
     }
   })();
-  const [topology, setTopology] = useState<ClusterTopology | null>(null);
-  const [selectedPod, setSelectedPod] = useState<PodInfo | null>(null);
-  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
-  const [prompts, setPrompts] = useState<PromptTemplate[]>([]);
 
   // ── WebSocket Real-Time Progress State ────────────────────────
   const [activeAgents, setActiveAgents] = useState<Record<number, {
@@ -468,12 +476,6 @@ export default function Home() {
       setDemoLoading(false);
     }
   };
-
-  // ── Global Status State ──────────────────────────────────────
-  const [globalStatus, setGlobalStatus] = useState<'SECURE' | 'THREAT_DETECTED' | 'DISRUPTED'>('SECURE');
-  const [serverHealth, setServerHealth] = useState<any>(null);
-  const [activeIncidentCount, setActiveIncidentCount] = useState(0);
-  const [circuitBreakers, setCircuitBreakers] = useState<any>({});
 
   // ── Mastra Execution Monitor State ─────────────────────────
   const [mastraEvents, setMastraEvents] = useState<any[]>([]);
