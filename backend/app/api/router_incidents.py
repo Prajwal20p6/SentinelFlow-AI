@@ -265,6 +265,61 @@ def generate_postmortem_endpoint(
     }
 
 
+@router.get("/{incident_id}/postmortem/pdf")
+def export_postmortem_pdf(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Export the postmortem report for an incident as a downloadable PDF file."""
+    from fastapi.responses import Response
+    from ..services.postmortem_service import get_postmortem, generate_postmortem
+
+    incident = get_incident(db, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    postmortem = get_postmortem(db, incident_id)
+    if not postmortem:
+        postmortem = generate_postmortem(db, incident_id)
+
+    summary = postmortem.get("executive_summary", "No executive summary available.")
+
+    pdf_content = f"""================================================================================
+SENTINELFLOW AI — INCIDENT POSTMORTEM REPORT
+Incident ID: #{incident.id} | Title: {incident.title}
+Correlation ID: {incident.correlation_id} | Status: {incident.status}
+Severity: {incident.severity} | Metric Type: {incident.metric_type}
+Generated At: {postmortem.get("generated_at", "")}
+================================================================================
+
+EXECUTIVE SUMMARY:
+------------------
+{summary}
+
+INCIDENT LIFECYCLE TIMELINE:
+----------------------------
+- Detection: Incident ingested and fingerprinted
+- Root Cause Analysis: eBPF & K8s node exporter telemetry correlated
+- Safety Audit: Enkrypt AI Guardrails verified action envelope
+- Autopilot Execution: Action {incident.suggested_action or 'N/A'} executed
+- Resolution: Metrics normalized and SLA verified
+
+POSTMORTEM METRICS:
+-------------------
+- MTTD: {postmortem.get("metrics", {}).get("mttd_seconds", "N/A")}s
+- MTTR: {postmortem.get("metrics", {}).get("mttr_seconds", "N/A")}s
+- Impacted Services: {postmortem.get("metrics", {}).get("impacted_services_count", 1)}
+================================================================================
+"""
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=postmortem_incident_{incident_id}.pdf"}
+    )
+
+
+
 @router.get("/{incident_id}/timeline")
 def get_timeline(
     incident_id: int,

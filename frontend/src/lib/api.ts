@@ -370,6 +370,18 @@ class APIClient {
     return this.request(`/incidents/${incidentId}/postmortem/generate`, { method: 'POST' });
   }
 
+  async exportPostmortemPdf(incidentId: number): Promise<Blob> {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('sf_token') : null;
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/incidents/${incidentId}/postmortem/pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('Failed to download postmortem PDF');
+    return res.blob();
+  }
+
+
+
   async getActiveExecution(): Promise<any> {
     return this.request('/monitor/active');
   }
