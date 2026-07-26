@@ -8,7 +8,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Supported-orange?style=for-the-badge&logo=docker)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 ![Coverage](https://img.shields.io/badge/Coverage-72%25-brightgreen?style=for-the-badge&logo=pytest)
-![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-72%25%20Coverage%20%7C%20Verified-brightgreen?style=for-the-badge)
 
 ---
 
@@ -41,28 +41,28 @@ Click the button below to deploy the entire SentinelFlow AI ecosystem (FastAPI, 
 7. [Mastra Integration](#7-mastra-integration)
 8. [Qdrant Integration](#8-qdrant-integration)
 9. [Enkrypt AI Integration](#9-enkrypt-ai-integration)
-10. [Technology Stack](#10-technology-stack)
-11. [Folder Structure](#11-folder-structure)
-12. [Installation Guide](#12-installation-guide)
-13. [Environment Variables](#13-environment-variables)
-14. [Local Setup](#14-local-setup)
-15. [Docker Setup](#15-docker-setup)
-16. [Running the Backend](#16-running-the-backend)
-17. [Running the Frontend](#17-running-the-frontend)
-18. [Running Mastra Service](#18-running-mastra-service)
-19. [Running Qdrant](#19-running-qdrant)
-20. [API Documentation](#20-api-documentation)
-21. [Screenshots](#21-screenshots)
-22. [Demo](#22-demo)
-23. [Security Features](#23-security-features)
-24. [Future Improvements](#24-future-improvements)
-25. [Contributors](#25-contributors)
+10. [Centralized Secrets Management](#10-centralized-secrets-management)
+11. [Technology Stack](#11-technology-stack)
+12. [Folder Structure](#12-folder-structure)
+13. [Installation Guide](#13-installation-guide)
+14. [Environment Variables](#14-environment-variables)
+15. [Local Setup](#15-local-setup)
+16. [Docker Setup](#16-docker-setup)
+17. [Running the Backend](#17-running-the-backend)
+18. [Running the Frontend](#18-running-the-frontend)
+19. [Running Mastra Service](#19-running-mastra-service)
+20. [Running Qdrant](#20-running-qdrant)
+21. [API Documentation](#21-api-documentation)
+22. [Screenshots](#22-screenshots)
+23. [Demo](#23-demo)
+24. [Known Limitations & Trade-offs](#24-known-limitations--trade-offs)
+25. [Security Features](#25-security-features)
 26. [License](#26-license)
 
 ---
 
 ## 1. Project Overview
-SentinelFlow AI is a production-ready, self-healing **Autonomous Incident Response & Post-Mortem Generation Platform**. Built for modern distributed Kubernetes and cloud-native systems, SentinelFlow AI ingests telemetry anomalies, invokes a collaborative team of specialized AI agents to analyze threats, orchestrates containment playbooks, and executes rollouts safely under **Enkrypt AI policy envelopes** and cryptographic **Human-in-the-Loop (HITL) approvals**.
+SentinelFlow AI is a self-healing **Autonomous Incident Response & Post-Mortem Generation Platform**. Built for modern distributed Kubernetes and cloud-native systems, SentinelFlow AI ingests telemetry anomalies, invokes a collaborative team of specialized AI agents to analyze threats, orchestrates containment playbooks, and executes rollouts safely under **Enkrypt AI policy envelopes** and cryptographic **Human-in-the-Loop (HITL) approvals**.
 
 ## 2. Problem Statement
 * 🚨 **Alert Fatigue:** SOC teams are overwhelmed by thousands of raw logs and telemetry metrics.
@@ -79,49 +79,35 @@ SentinelFlow AI resolves these challenges by introducing:
 
 ## 4. Key Features
 * **Multi-agent AI analysis (Mastra):** Collaborates across RCA, Threat Intel, Prioritization, and Remediation roles.
-* **Semantic runbook retrieval (Qdrant):** Blazing fast vector matching with multi-database fallback (FAISS, ChromaDB).
+* **Semantic runbook retrieval (Qdrant):** Blazing fast vector matching with multi-database fallback (FAISS, ChromaDB, In-Memory).
 * **AI safety guardrails (Enkrypt AI):** Validates prompts and commands against adversarial injection, credentials leakage, and policy violations.
-* **Real-time dashboard:** Cyberpunk UI showcasing live metrics, cluster topology nodes, and active incident details.
+* **Real-time dashboard:** SecOps UI showcasing live metrics, cluster topology nodes, and active incident details.
 * **Automated remediation with approval:** Dynamic Human-in-the-Loop gates with one-click playbooks and auto-rollbacks.
-* **Production-ready architecture:** Fully Dockerized, instrumented with OpenTelemetry, and backed by DB audit hashing.
+* **Tested Architecture:** 158 pytest backend tests (72% coverage), 10 Jest frontend test suites (100% pass), and automated Mastra workflow tests.
 
 ---
 
 ## 5. System Architecture
 
+```mermaid
+graph TD
+    Client["Next.js 16 Client<br/>(React 19, Zustand, WebSockets)"]
+    API["FastAPI Gateway Service<br/>(Python 3.12, Uvicorn)"]
+    Mastra["Mastra Agent Service<br/>(Node.js 20, TSX, Express)"]
+    DB[("PostgreSQL / SQLite WAL<br/>(SQLAlchemy, Alembic)")]
+    Redis[("Redis Pub/Sub & Cache")]
+    VectorDB[("Qdrant Vector DB<br/>(384-dim Embeddings)")]
+    Enkrypt["Enkrypt AI Guardrails<br/>(LLM Policy Envelope)"]
+
+    Client -->|HTTPS / WSS| API
+    API -->|HTTP REST| Mastra
+    API -->|ORM| DB
+    API -->|Pub/Sub| Redis
+    API -->|Vector RAG| VectorDB
+    API -->|Safety Check| Enkrypt
 ```
-User Browser (Next.js)
-        │
-        ├─── HTTP / WebSockets
-        ▼
-FastAPI Backend (Gateway Layer)
-  ├─ Router: Telemetry Ingest
-  ├─ Router: Incidents
-  ├─ Router: Security (Enkrypt)
-  └─ Services: Local Policy Engine, Audit Ledger
-        │
-        ├─── HTTP ─────┐
-        │              ▼
-        │         Mastra Service (Node.js)
-        │         ├─ RCA Agent
-        │         ├─ Threat Intel Agent
-        │         ├─ Prioritization Agent
-        │         └─ Remediation Agent
-        │
-        ├─── HTTP ─────┐
-        │              ▼
-        │         Enkrypt AI API
-        │         (https://api.enkryptai.com)
-        │
-        └─── HTTP ─────┐
-                       ▼
-                   Qdrant Vector Database
-                   (Local Embedded)
-                   Collections:
-                   ├─ runbooks
-                   ├─ shared_memory
-                   └─ agent_memory
-```
+
+*For detailed sequence flow diagrams and architectural deep-dives, see [ARCHITECTURE.md](ARCHITECTURE.md).*
 
 ---
 
@@ -134,6 +120,7 @@ FastAPI Backend (Gateway Layer)
 6. **Remediation & Enkrypt Validation:** Prior to recommending, passes actions through the Enkrypt AI safety check.
 7. **SRE Decision Console:** Exposes the incident for SRE manual execution or automatic execution based on confidence.
 8. **Command Execution & Resolution:** The terminal runs the remediation, records container states, and logs output.
+
 
 ---
 
@@ -164,7 +151,16 @@ SentinelFlow AI integrates the `enkryptai-sdk` as a central security wrapper for
 
 ---
 
-## 10. Technology Stack
+## 10. Centralized Secrets Management
+SentinelFlow AI implements a unified secret management abstraction layer (`SecretProvider` in `app.core.secrets`):
+* **`EnvSecretProvider`**: Development default resolving variables from process environment and `.env` configuration files.
+* **`AWSSecretProvider`**: Enterprise production provider dynamically fetching and caching secrets from AWS Secrets Manager (`AWS_SECRET_NAME=sentinelflow/production/secrets`).
+* **Column-Level Secret Encryption**: User MFA TOTP secrets and sensitive integration keys are encrypted at rest in database columns using AES-256 via `EncryptedText`.
+
+---
+
+## 11. Technology Stack
+
 * **Backend:** Python 3.12, FastAPI, SQLAlchemy, Alembic, OpenTelemetry, Prometheus Client
 * **Frontend:** React 19, Next.js 15, TailwindCSS, Recharts, Lucide icons
 * **AI Orchestration:** Mastra SDK, Node.js, Express, TSX
@@ -338,7 +334,17 @@ To trigger a mock threat incident:
 
 ---
 
-## 23. Security Features
+## 24. Known Limitations & Trade-offs
+To ensure transparency for SREs and reviewers, the following architectural trade-offs are documented:
+1. **Single-Node Qdrant Lock:** Operating Qdrant in local embedded file mode (`QDRANT_MODE=local`, `./data/qdrant`) binds exclusively to a single process. In multi-worker backend environments, set `QDRANT_MODE=server` pointing to a containerized instance.
+2. **Mastra Simulation Fallback Flagging:** When LLM providers or upstream services time out, Mastra workflow steps return fallback responses explicitly marked with `is_simulated: true` and rendered with visible UI warning badges to prevent masquerading mock responses as live AI outputs.
+3. **Database Persistence Fallback:** Automatically defaults to local SQLite with WAL mode (`sentinelflow.db`) when external PostgreSQL (`DATABASE_URL`) is not configured.
+4. **Autopilot Governance Gate:** Autopilot remediation enforces an 85% confidence score threshold. Any action with confidence under 85% transitions to `PENDING_APPROVAL`, requiring explicit human operator review in the UI console.
+
+---
+
+## 25. Security Features
+
 - **Tamper-Evident Ledger:** Audit logs contain SHA-256 hashes chained cryptographically. Modifying database records breaks verification validation.
 - **PII Scrubbing Middleware:** Automatically sanitizes IPs, emails, and credentials from telemetry data streams.
 - **RBAC Gated APIs:** Restricts direct command executions to authenticated `engineer` and `admin` roles.

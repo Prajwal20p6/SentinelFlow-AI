@@ -1,68 +1,89 @@
 # SentinelFlow AI — System Architecture & Data Flow
 
-SentinelFlow AI maps real-time telemetry inputs to auto-healing cloud actions using multi-stage AI workflows and safety envelopes.
+SentinelFlow AI maps real-time telemetry inputs to auto-healing cloud actions using multi-stage AI agent workflows, Enkrypt AI safety guardrail policy envelopes, and tamper-evident audit ledgers.
 
 ---
 
-## 1. Multi-Tiered Architecture
+## 1. System Component Architecture
 
-The system consists of three main operational tiers:
+```mermaid
+graph TD
+    Client["Next.js 16 Web Dashboard<br/>(React 19, Zustand, TailwindCSS)"]
+    API["FastAPI Gateway Service<br/>(Python 3.12, Uvicorn)"]
+    Mastra["Mastra Agent Microservice<br/>(Node.js 20, TypeScript, Express)"]
+    DB[("PostgreSQL / SQLite WAL<br/>(SQLAlchemy, Alembic)")]
+    Redis[("Redis Pub/Sub & Cache<br/>(Event Streaming)")]
+    VectorDB[("Qdrant Vector DB<br/>(384-dim Embeddings)")]
+    Chroma[("ChromaDB Fallback")]
+    FAISS[("FAISS Fallback")]
+    InMemory[("In-Memory Store Fallback")]
+    Enkrypt["Enkrypt AI Guardrails<br/>(LLM Policy Envelope)"]
 
-```
-+-------------------------------------------------------------+
-|                     Next.js React Client                    |
-|  - Live topology nodes mapping                              |
-|  - Real-time WebSockets connection channels                 |
-|  - Interactive command console                              |
-+-------------------------------------------------------------+
-                              |
-                     HTTPS / WebSockets
-                              v
-+-------------------------------------------------------------+
-|                      FastAPI Services                       |
-|  - Telemetry Normalizers (JSON/Prometheus/K8s events)       |
-|  - Mastra Workflow Orchestration Machine (8 States)         |
-|  - Enkrypt AI Guardrails Policy Engine                      |
-|  - Dynamic LLM failover layer (OpenAI/Anthropic/Gemini)      |
-+-------------------------------------------------------------+
-                              |
-                              v
-+-------------------------------------------------------------+
-|                    Infrastructure & Caching                 |
-|  - SQLite / PostgreSQL: Session logs, incidents records    |
-|  - Redis: Pub/sub events propagation and cache buffers      |
-|  - Qdrant: RAG Runbook vector embeddings memory             |
-+-------------------------------------------------------------+
+    Client -->|HTTPS REST API| API
+    Client -->|WebSocket Live Stream| API
+    API -->|HTTP REST| Mastra
+    API -->|SQLAlchemy ORM| DB
+    API -->|Pub/Sub & Caching| Redis
+    API -->|Circuit Breaker| VectorDB
+    VectorDB -.->|Fallback 1| Chroma
+    Chroma -.->|Fallback 2| FAISS
+    FAISS -.->|Fallback 3| InMemory
+    API -->|Command Validation| Enkrypt
 ```
 
 ---
 
-## 2. The 8-State Mastra Self-Healing Lifecycle
+## 2. Flagship Autonomous Incident Response Sequence
 
-When an anomaly triggers, the Mastra workflow transitions through eight states:
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Telemetry as Prometheus / K8s Telemetry
+    participant Gateway as FastAPI Backend Gateway
+    participant Enkrypt as Enkrypt AI Guardrails
+    participant Qdrant as Qdrant Vector Store
+    participant Mastra as Mastra Agent Service
+    actor Operator as Human SRE Operator
+    participant Audit as Cryptographic Audit Ledger
 
-1. **State 1: DETECT_ANOMALY**
-   Receives telemetry, scrubs PII, checks prompt injection vectors. Creates an incident record.
-2. **State 2: RAG_RETRIEVAL**
-   Queries Qdrant runbook memories for matching commands. Cascades to FAISS/Chroma fallbacks if Qdrant is offline.
-3. **State 3: LLM_REASONING**
-   Feeds context to OpenAI, Anthropic, or Gemini to formulate action plans.
-4. **State 4: CONTRADICTION_CHECK**
-   Compares recommended commands against retrieved runbooks. Scales down confidence if inconsistencies are found.
-5. **State 5: VALIDATE**
-   Evaluates commands via the **Enkrypt AI Safety Envelope** denylist. Blocks command execution if dangerous threat matches are detected.
-6. **State 6: APPROVE_DECISION**
-   Applies confidence threshold gates. Auto-approves if confidence $\ge$ 80% (autopilot); routes to PENDING_APPROVAL and alerts Slack webhooks if confidence is below.
-7. **State 7: EXECUTE_REMEDIATION**
-   Executes commands via K8s, AWS, or GCP clients in dry-run or live mode. Write audit logs.
-8. **State 8: VERIFY_EXECUTION**
-   Asserts system returns to healthy state. Closes incident ticket.
+    Telemetry->>Gateway: POST /api/v1/telemetry/ingest (Metrics / Anomaly Event)
+    Gateway->>Gateway: Fingerprint & Create Incident Record
+    Gateway->>Enkrypt: Validate Prompt & Context (Prompt Injection Check)
+    Enkrypt-->>Gateway: Validation Result (Allowed / Sanitized)
+    Gateway->>Qdrant: Search Similar Runbooks (Vector Similarity Search)
+    Qdrant-->>Gateway: Matching Runbooks & SOP Chunks
+    Gateway->>Mastra: POST /mastra/workflows/incident-response
+    Mastra->>Mastra: Execute RCA, Threat Intel, Prioritization, & Remediation Agents
+    Mastra-->>Gateway: Agent Workflow Results & Confidence Score (e.g. 71.24%)
+    
+    alt Confidence >= 85% (Autopilot Mode)
+        Gateway->>Gateway: Auto-Execute Remediation Action
+    else Confidence < 85% (Human-in-the-Loop Gate)
+        Gateway->>Gateway: Set Status PENDING_APPROVAL
+        Gateway->>Operator: WebSocket Notification (Pending Human Action)
+        Operator->>Gateway: POST /api/v1/incidents/{id}/approve
+        Gateway->>Gateway: Execute Remediation Action & Update Status EXECUTED
+    end
+
+    Gateway->>Audit: Record Action & SHA-256 Cryptographic Hash Chain
+    Gateway->>Gateway: Generate Postmortem Report & PDF Export Stream
+```
 
 ---
 
-## 3. Cryptographic Ledgers & S3 Archiving
+## 3. Centralized Secrets & Configuration Architecture
 
-To prevent tampering by malicious actors:
-1. Every incident state transition, safety check, and cloud action is written to the `audit_trails` table.
-2. Each log entry calculates a SHA-256 block hash incorporating the hash of the previous log entry, forming a cryptographically chained ledger.
-3. System verification runs daily, serializing verified log chains and archiving them to AWS S3 backup storage buckets.
+Secrets and environment configurations are managed via a centralized provider pattern (`SecretProvider` in `app.core.secrets`):
+
+- **`EnvSecretProvider`**: Resolves configuration keys from local process environment and `.env` files.
+- **`AWSSecretProvider`**: Fetch and cache secrets dynamically from AWS Secrets Manager in production deployments.
+- **Encrypted Database Columns**: Sensitive credentials (such as MFA TOTP secrets) are stored using `EncryptedText` SQLAlchemy column types with AES-256 encryption at rest.
+
+---
+
+## 4. Known Limitations & Architectural Trade-offs
+
+1. **Single-Node Qdrant File Lock**: When operating in local embedded file mode (`QDRANT_MODE=local`, `./data/qdrant`), Qdrant locks its directory exclusively to a single process. In multi-worker backend setups, run Qdrant in server/container mode (`QDRANT_MODE=server`).
+2. **Mastra Simulation Fallback Flagging**: If upstream LLMs or API keys time out, Mastra workflow steps return fallback responses explicitly flagged with `is_simulated: true` and visible UI warning badges to ensure zero silent mock masquerading.
+3. **Database Persistence Fallback**: Defaults to SQLite with WAL mode (`sentinelflow.db`) when external PostgreSQL is unavailable.
+4. **Autopilot Governance Gate**: Autopilot remediation enforces an 85% confidence score threshold; actions below 85% transition to `PENDING_APPROVAL` requiring human SRE operator review in the UI.
