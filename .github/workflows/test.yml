@@ -27,14 +27,36 @@ jobs:
     - name: Run Pytest with Coverage Gate
       run: |
         cd backend
-        pytest --cov=app --cov-report=xml --cov-fail-under=68
+        pytest --cov=app --cov-report=xml --cov-fail-under=72
 
     - name: Upload Coverage Artifact
       uses: actions/upload-artifact@v4
       with:
         name: backend-coverage-report
         path: backend/coverage.xml
+
+  mastra-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: mastra-service/package.json
         
+    - name: Install dependencies
+      run: |
+        cd mastra-service
+        npm install
+        
+    - name: Run Mastra test suite
+      run: |
+        cd mastra-service
+        npm test
+
   frontend-tests:
     runs-on: ubuntu-latest
     steps:
@@ -52,7 +74,13 @@ jobs:
         cd frontend
         npm install
         
+    - name: Run Frontend unit tests
+      run: |
+        cd frontend
+        npm test
+
     - name: Build Next.js app
       run: |
         cd frontend
         npm run build
+
