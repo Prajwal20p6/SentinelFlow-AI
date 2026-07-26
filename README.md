@@ -57,7 +57,9 @@ Click the button below to deploy the entire SentinelFlow AI ecosystem (FastAPI, 
 23. [Demo](#23-demo)
 24. [Known Limitations & Trade-offs](#24-known-limitations--trade-offs)
 25. [Security Features](#25-security-features)
-26. [License](#26-license)
+26. [Future Improvements](#26-future-improvements)
+27. [Contributors](#27-contributors)
+28. [License](#28-license)
 
 ---
 
@@ -162,23 +164,23 @@ SentinelFlow AI implements a unified secret management abstraction layer (`Secre
 ## 11. Technology Stack
 
 * **Backend:** Python 3.12, FastAPI, SQLAlchemy, Alembic, OpenTelemetry, Prometheus Client
-* **Frontend:** React 19, Next.js 15, TailwindCSS, Recharts, Lucide icons
+* **Frontend:** React 19, Next.js 16, TailwindCSS, Recharts, Lucide icons, Zustand
 * **AI Orchestration:** Mastra SDK, Node.js, Express, TSX
 * **Databases:** Qdrant, PostgreSQL, SQLite, Redis
 * **LLMs:** OpenAI GPT-4, Anthropic Claude-3
 
 ---
 
-## 11. Folder Structure
+## 12. Folder Structure
 ```
 sentinelflow-ai/
 ├── README.md (project root)
+├── ARCHITECTURE.md (Mermaid diagrams & flows)
 ├── LICENSE (MIT License)
-├── .gitignore (complete git patterns)
 ├── docker-compose.yml
 ├── .github/
-│   ├── ISSUE_TEMPLATE/
-│   └── PULL_REQUEST_TEMPLATE.md
+│   └── workflows/
+│       └── test.yml (Pytest, Jest & Playwright E2E CI)
 ├── backend/
 │   ├── requirements.txt
 │   ├── .env.example
@@ -190,16 +192,19 @@ sentinelflow-ai/
 │   └── tests/
 ├── frontend/
 │   ├── package.json
+│   ├── .env.example
+│   ├── e2e/
+│   │   └── demo_flow.spec.ts (Playwright test)
 │   └── src/
 └── mastra-service/
     ├── package.json
-    ├── tsconfig.json
+    ├── .env.example
     └── src/
 ```
 
 ---
 
-## 12. Installation Guide
+## 13. Installation Guide
 Ensure you have the following installed locally:
 - Python 3.12+
 - Node.js 20+
@@ -213,19 +218,47 @@ cd SentinelFlow-AI
 
 ---
 
-## 13. Environment Variables
-Copy `.env.example` to `.env` in the root:
-```bash
-cp .env.example .env
-```
-Key configurations include:
-- `OPENAI_API_KEY`: Your OpenAI API token.
-- `ENKRYPTAI_API_KEY`: Your Enkrypt AI account token.
-- `LLM_PROVIDER`: Set to `simulation` for mock run mode or `openai` / `anthropic` for production.
+## 14. Environment Variables
+
+Copy `.env.example` to `.env` in the root or individual service directories:
+- [`backend/.env.example`](backend/.env.example)
+- [`frontend/.env.example`](frontend/.env.example)
+- [`mastra-service/.env.example`](mastra-service/.env.example)
+
+### **Required Railway Dashboard Environment Variables**
+
+The table below explicitly details the variables required in Railway's project dashboard for a clean production deployment:
+
+#### **1. Backend Gateway Service (`backend/`)**
+| Variable | Description | Example / Required Value |
+| :--- | :--- | :--- |
+| `SECRET_KEY` | JWT token signature key (at least 32 bytes) | `sentinelflow-prod-jwt-secret-key-32bytes` |
+| `ENCRYPTION_KEY` | AES-256 database column encryption key | `sentinelflow-aes256-encryption-key!!` |
+| `ALLOWED_ORIGINS` | Comma-separated CORS allowed origin URLs | `https://frontend-production-3b6e.up.railway.app` |
+| `DATABASE_URL` | PostgreSQL URI (provided by Railway Postgres plugin) | `postgresql://sentinelflow:...@railway.app:5432/railway` |
+| `MASTRA_URL` | Deployed Mastra agent service URL | `https://mastra-production.up.railway.app` |
+| `LLM_PROVIDER` | Execution provider mode (`simulation`, `openai`, `anthropic`) | `simulation` |
+| `FF_DEMO_MODE` | Enable scenario triggers and simulation fallbacks | `true` |
+| `ENKRYPTAI_ENABLED` | Enable Enkrypt AI guardrail evaluation | `true` |
+
+#### **2. Frontend Web Application (`frontend/`)**
+| Variable | Description | Example / Required Value |
+| :--- | :--- | :--- |
+| `NEXT_PUBLIC_API_URL` | Live backend API Gateway URL (HTTP REST) | `https://backend-production-f51a.up.railway.app/api/v1` |
+| `NEXT_PUBLIC_WS_URL` | Live WebSocket endpoint URL | `wss://backend-production-f51a.up.railway.app/api/v1/ws` |
+| `PORT` | Web server listening port | `3000` |
+
+#### **3. Mastra Agent Service (`mastra-service/`)**
+| Variable | Description | Example / Required Value |
+| :--- | :--- | :--- |
+| `PYTHON_BACKEND_URL` | Root URL of Python FastAPI backend service | `https://backend-production-f51a.up.railway.app` |
+| `PYTHON_BACKEND_API_KEY` | Shared internal authentication key | `sentinelflow_super_secret_2026` |
+| `NODE_ENV` | Environment execution mode | `production` |
+| `PORT` | Listening port for Mastra server | `3001` (or Railway assigned PORT) |
 
 ---
 
-## 14. Local Setup
+## 15. Local Setup
 You can run the three service groups locally in separate terminal tabs:
 
 ### 1. Start the Python Backend
@@ -253,7 +286,7 @@ npm run dev
 
 ---
 
-## 15. Docker Setup
+## 16. Docker Setup
 To spin up all services together using Docker Compose:
 ```bash
 docker-compose up --build
@@ -262,7 +295,7 @@ This launches the FastAPI server, Next.js dashboard, Mastra workflow agent servi
 
 ---
 
-## 16. Running the Backend
+## 17. Running the Backend
 To start the Python backend in isolation:
 ```bash
 cd backend
@@ -272,7 +305,7 @@ Swagger UI docs will be available at: http://localhost:8000/docs
 
 ---
 
-## 17. Running the Frontend
+## 18. Running the Frontend
 To start the React frontend client in isolation:
 ```bash
 cd frontend
@@ -282,7 +315,7 @@ The user console will be available at: http://localhost:3000
 
 ---
 
-## 18. Running Mastra Service
+## 19. Running Mastra Service
 To launch the Node.js Mastra agent executor:
 ```bash
 cd mastra-service
@@ -292,7 +325,7 @@ The agent workflows run on: http://localhost:3001
 
 ---
 
-## 19. Running Qdrant
+## 20. Running Qdrant
 Qdrant runs automatically in local SQLite-backed mode. If you prefer running a remote/server instance:
 ```bash
 docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant
@@ -301,7 +334,7 @@ Change `QDRANT_MODE=server` and `QDRANT_HOST=localhost` in your `.env` configura
 
 ---
 
-## 20. API Documentation
+## 21. API Documentation
 Detailed interactive API swagger docs are exposed at: http://localhost:8000/docs
 Key API groups:
 - **Telemetry Ingestion:** `POST /api/v1/telemetry/ingest`
@@ -311,7 +344,7 @@ Key API groups:
 
 ---
 
-## 21. Screenshots
+## 22. Screenshots
 
 ### Cyber Security Dashboard
 ![Dashboard](docs/screenshots/02-dashboard.png)
@@ -324,7 +357,7 @@ Key API groups:
 
 ---
 
-## 22. Demo
+## 23. Demo
 To trigger a mock threat incident:
 1. Open http://localhost:3000/
 2. Log in with `admin@sentinelflow.ai` / `admin123`.
@@ -351,18 +384,19 @@ To ensure transparency for SREs and reviewers, the following architectural trade
 
 ---
 
-## 24. Future Improvements
+## 26. Future Improvements
 - Integrations with Kubernetes CRDs for actual namespace isolation.
 - Multi-cloud API orchestrators (AWS Security Hub, GCP Command Center).
 - Custom prompt templates hot reloading.
 
 ---
 
-## 25. Contributors
+## 27. Contributors
 - **Prajwal S** — Lead System Architect & SRE (https://github.com/Prajwal20p6)
 - HiDevs Hackathon Team (2026)
 
 ---
 
-## 26. License
+## 28. License
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
