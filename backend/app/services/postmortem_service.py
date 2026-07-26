@@ -248,13 +248,17 @@ def generate_postmortem(db: Session, incident_id: int) -> Dict[str, Any]:
 def get_postmortem(db: Session, incident_id: int) -> Optional[Dict[str, Any]]:
     """Retrieve existing postmortem for an incident."""
     incident = db.query(Incident).filter(Incident.id == incident_id).first()
-    if not incident or not incident.postmortem_json:
+    if not incident:
+        return None
+    raw_report = getattr(incident, "executive_report_json", None) or getattr(incident, "postmortem_json", None)
+    if not raw_report:
         return None
     
     try:
-        return json.loads(incident.postmortem_json)
+        return json.loads(raw_report)
     except Exception:
         return None
+
 
 
 # ── Private Helper Functions ───────────────────────────────────────
