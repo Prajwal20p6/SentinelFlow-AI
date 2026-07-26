@@ -247,24 +247,34 @@ def test_audit_trail_cryptographic_ledger(db_session):
 
 
 # ── 4. Qdrant / Vector DB RAG Retrieval Tests ───────────────────────
+from unittest.mock import patch, MagicMock
+from app.core.vector_db import in_memory_store
+
 def test_qdrant_embeddings_and_retrieval():
     """Verify deterministic pseudo-embedding generation and RAG runbook search."""
-    # Verify pseudo-embedding returns expected dimensions
-    embedding = get_text_embedding("kubectl CPU exhaustion spike on node-01")
-    assert isinstance(embedding, list)
-    assert len(embedding) == 384
-    # Normalization check
-    import numpy as np
-    norm = np.linalg.norm(embedding)
-    assert abs(norm - 1.0) < 1e-4
+    in_memory_store.upsert(
+        point_id=1,
+        vector=[0.1] * 384,
+        payload={"title": "High memory exhaustion OOM warning", "content": "Kill high memory process", "category": "k8s"}
+    )
+    with patch("app.services.circuit_breaker_service.CircuitBreakerService.call", side_effect=Exception("Qdrant offline fallback")):
+        # Verify pseudo-embedding returns expected dimensions
+        embedding = get_text_embedding("kubectl CPU exhaustion spike on node-01")
+        assert isinstance(embedding, list)
+        assert len(embedding) == 384
+        # Normalization check
+        import numpy as np
+        norm = np.linalg.norm(embedding)
+        assert abs(norm - 1.0) < 1e-4
 
-    # Seed runbooks collection
-    init_qdrant_collections()
+        # Search runbooks
+        results = search_similar_runbooks("High memory exhaustion OOM warning", limit=2)
+        assert len(results) >= 1
+        # Check that it returns formatted matches
+        assert "title" in results[0]
+        assert "content" in results[0]
+        assert "score" in results[0]
 
-    # Search runbooks
-    results = search_similar_runbooks("High memory exhaustion OOM warning", limit=2)
-    assert len(results) >= 1
-    # Check that it returns formatted matches
-    assert "title" in results[0]
-    assert "content" in results[0]
-    assert "score" in results[0]
+
+
+

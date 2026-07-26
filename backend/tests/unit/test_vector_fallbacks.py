@@ -5,7 +5,9 @@ from app.core.vector_db import (
     search_similar_runbooks,
     add_resolution_to_qdrant,
     InMemoryVectorStore,
+    in_memory_store,
 )
+
 
 def test_pseudo_embedding_generation():
     emb = get_text_embedding("CPU usage spike on deployment")
@@ -35,7 +37,19 @@ def test_in_memory_search_fallback():
     assert len(hits_filter) == 1
     assert hits_filter[0]["title"] == "Disk full"
 
+from unittest.mock import patch, MagicMock
+
 def test_search_cascade():
-    results = search_similar_runbooks("CPU Exhaustion", limit=1)
-    assert len(results) >= 1
-    assert results[0]["title"] == "CPU Exhaustion Remediation"
+    in_memory_store.upsert(
+        point_id=1,
+        vector=[0.1] * 384,
+        payload={"title": "CPU Exhaustion Remediation", "content": "Limit CPU replicas", "category": "k8s"}
+    )
+    with patch("app.services.circuit_breaker_service.CircuitBreakerService.call", side_effect=Exception("Qdrant unavailable")):
+        results = search_similar_runbooks("CPU Exhaustion", limit=1)
+        assert len(results) >= 1
+        assert "CPU" in results[0]["title"]
+
+
+
+

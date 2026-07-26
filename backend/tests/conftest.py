@@ -140,3 +140,24 @@ def client():
     """FastAPI TestClient fixture."""
     with TestClient(fastapi_app) as c:
         yield c
+
+
+# ── External Network Guard Fixture ────────────────────────────
+@pytest.fixture(scope="function", autouse=True)
+def mock_external_network_dependencies(monkeypatch):
+    """
+    Autouse fixture that blocks any external network socket calls to Qdrant,
+    Enkrypt AI, or LLM APIs (OpenAI / Anthropic) during pytest execution.
+    Only local loopback connections (127.0.0.1 / localhost) are permitted.
+    """
+    import socket
+    orig_connect = socket.socket.connect
+
+    def guarded_connect(self, address):
+        host = address[0] if isinstance(address, tuple) and len(address) > 0 else str(address)
+        if host in ("127.0.0.1", "localhost", "0.0.0.0", "::1"):
+            return orig_connect(self, address)
+        raise RuntimeError(f"External network call blocked during tests: attempted connection to {host}")
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+
