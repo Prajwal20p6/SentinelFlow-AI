@@ -6,16 +6,20 @@ test.describe('SentinelFlow AI Core Demo Flow E2E', () => {
     await page.goto('/');
 
     // Step 2: Fill login credentials and submit if on login screen
-    const emailInput = page.locator('input[type="email"]');
-    if (await emailInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await emailInput.fill('admin@sentinelflow.ai');
-      await page.locator('input[type="password"]').fill('admin123');
-      await page.click('button[type="submit"]');
+    const submitBtn = page.locator('button:has-text("INJECT CREDENTIALS")').or(page.locator('button[type="submit"]')).first();
+    if (await submitBtn.isVisible({ timeout: 10000 }).catch(() => false)) {
+      const emailInput = page.locator('input[type="email"]');
+      if (await emailInput.isVisible().catch(() => false)) {
+        await emailInput.fill('admin@sentinelflow.ai');
+        await page.locator('input[type="password"]').fill('admin123');
+      }
+      await submitBtn.click();
     }
 
     // Verify main dashboard sidebar loads
     const cyberDashboardTab = page.locator('button').filter({ hasText: 'Cyber Dashboard' });
-    await expect(cyberDashboardTab).toBeVisible({ timeout: 20000 });
+    await expect(cyberDashboardTab).toBeVisible({ timeout: 30000 });
+
 
     // Step 3: Authenticate via API and trigger a demo incident (CPU_SPIKE)
     const loginRes = await request.post('http://127.0.0.1:8000/api/v1/auth/login', {
@@ -27,12 +31,15 @@ test.describe('SentinelFlow AI Core Demo Flow E2E', () => {
 
     const triggerRes = await request.post('http://127.0.0.1:8000/api/v1/demo/trigger', {
       headers: { Authorization: `Bearer ${token}` },
-      data: { incident_type: 'CPU_SPIKE' },
+      data: { scenario: 'CPU_SPIKE' },
     });
     expect(triggerRes.ok()).toBeTruthy();
     const triggerData = await triggerRes.json();
-    const incidentId = triggerData.incident_id || 1;
+    expect(triggerData.status).toBe('success');
+    expect(triggerData.incident_id).toBeDefined();
+    const incidentId = triggerData.incident_id;
     console.log(`[E2E Test] Triggered demo incident ID: #${incidentId}`);
+
 
     // Step 4: Click Active Incidents tab and verify incident appears
     const activeIncidentsTab = page.locator('button').filter({ hasText: 'Active Incidents' });
