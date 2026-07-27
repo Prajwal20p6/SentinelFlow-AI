@@ -48,6 +48,25 @@ class APIGatewayMiddleware(BaseHTTPMiddleware):
         self._max_requests = settings.RATE_LIMIT_REQUESTS
         self._window_seconds = settings.RATE_LIMIT_WINDOW_SECONDS
 
+        # ── Production Redis Startup Check ────────────────────
+        # Fail fast in production if REDIS_URL is unset or unreachable
+        if settings.ENVIRONMENT == "production":
+            redis_url = getattr(settings, "REDIS_URL", None)
+            if not redis_url:
+                raise RuntimeError(
+                    "Production boot failed: REDIS_URL is required for distributed rate limiting in production mode."
+                )
+            try:
+                import redis
+                r = redis.Redis.from_url(redis_url, socket_connect_timeout=2)
+                r.ping()
+            except Exception as err:
+                raise RuntimeError(
+                    f"Production boot failed: REDIS_URL '{redis_url}' is unreachable ({err}). "
+                    "Distributed rate limiting requires a live Redis instance in production mode."
+                ) from err
+
+
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         client_ip = request.client.host if request.client else "unknown"
