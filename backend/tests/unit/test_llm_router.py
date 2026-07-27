@@ -14,7 +14,8 @@ def test_router_scoring_logic():
         cost_sensitive=True
     )
     assert decision_cheap["tier"] == "fast_cheap"
-    assert "fast" in decision_cheap["model_name"]
+    assert decision_cheap["model_name"] in ["simulation-fast", "gpt-4o-mini", "claude-3-haiku-20240307", "gemini-1.5-flash"]
+
 
     # 2. Critical + unauthorized -> standard or full_power (depends on latency/normal override)
     decision_critical = select_optimal_model(
@@ -48,7 +49,8 @@ def test_llm_service_router_integration():
         cost_sensitive=True
     )
     assert resp.model_tier == "fast_cheap"
-    assert "fast" in resp.routed_model
+    assert resp.routed_model in ["simulation-fast", "gpt-4o-mini", "claude-3-haiku-20240307", "gemini-1.5-flash"]
+
     assert resp.cost_usd < 0.0005
 
 
