@@ -17,9 +17,11 @@ import {
   Terminal,
 } from 'lucide-react';
 
+import { usePathname, useRouter } from 'next/navigation';
+
 interface SidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: any) => void;
+  activeTab?: string;
+  setActiveTab?: (tab: any) => void;
   activeIncidentCount: number;
   serverHealth: any;
   govMode: string;
@@ -35,14 +37,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
   govMode,
   govMinConfidence = 85,
 }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleTabClick = (tab: string) => {
+    if (setActiveTab) {
+      setActiveTab(tab);
+    }
+    router.push(`/${tab}`);
+  };
+
+  const isTabActive = (tab: string) => {
+    if (activeTab) return activeTab === tab;
+    if (pathname === `/${tab}`) return true;
+    if (tab === 'dashboard' && (pathname === '/' || pathname === '/dashboard')) return true;
+    return false;
+  };
+
 
   return (
     <nav className="w-64 bg-[#111827] border-r border-white/5 p-4 space-y-2 flex flex-col justify-between">
       <div className="space-y-1">
         <button
-          onClick={() => setActiveTab('dashboard')}
+          onClick={() => handleTabClick('dashboard')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'dashboard'
+            isTabActive('dashboard')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -51,9 +70,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('executive')}
+          onClick={() => handleTabClick('executive')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'executive'
+            isTabActive('executive')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -62,9 +81,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('incidents')}
+          onClick={() => handleTabClick('incidents')}
           className={`w-full flex items-center justify-between px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'incidents'
+            isTabActive('incidents')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -80,9 +99,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('topology')}
+          onClick={() => handleTabClick('topology')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'topology'
+            isTabActive('topology')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -91,9 +110,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('audit')}
+          onClick={() => handleTabClick('audit')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'audit'
+            isTabActive('audit')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -102,9 +121,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('prompts')}
+          onClick={() => handleTabClick('prompts')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'prompts'
+            isTabActive('prompts')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -113,9 +132,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('observability')}
+          onClick={() => handleTabClick('observability')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'observability'
+            isTabActive('observability')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -124,9 +143,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('knowledge')}
+          onClick={() => handleTabClick('knowledge')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'knowledge'
+            isTabActive('knowledge')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -135,9 +154,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('settings')}
+          onClick={() => handleTabClick('settings')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'settings'
+            isTabActive('settings')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -146,9 +165,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('metrics')}
+          onClick={() => handleTabClick('metrics')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'metrics'
+            isTabActive('metrics')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -157,9 +176,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('playbooks')}
+          onClick={() => handleTabClick('playbooks')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'playbooks'
+            isTabActive('playbooks')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
@@ -168,15 +187,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('mastra')}
+          onClick={() => handleTabClick('mastra')}
           className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === 'mastra'
+            isTabActive('mastra')
               ? 'bg-emerald-500/10 text-[#00ff88] border-l-2 border-[#00ff88]'
               : 'hover:bg-white/5 text-slate-400'
           }`}
         >
           <Zap className="w-4 h-4" /> Mastra Execution
         </button>
+
       </div>
 
       {/* Quick Metrics mini card */}

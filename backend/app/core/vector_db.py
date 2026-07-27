@@ -142,7 +142,8 @@ class ChromaFallbackStore:
         self.collection = None
         if CHROMA_AVAILABLE:
             try:
-                self.client = chromadb.PersistentClient(path="./data/chroma")
+                chroma_path = os.path.join(settings.QDRANT_PATH, "chroma") if hasattr(settings, "QDRANT_PATH") else "./data/chroma"
+                self.client = chromadb.PersistentClient(path=chroma_path)
                 self.collection = self.client.get_or_create_collection("runbooks")
             except Exception as e:
                 logger.warning("chroma_init_failed", error=str(e))

@@ -23,7 +23,7 @@ from app.main import app as fastapi_app
 TEST_DB_URL = "sqlite:///./test_sentinelflow.db"
 
 @pytest.fixture(scope="session", autouse=True)
-def override_settings():
+def override_settings(tmp_path_factory):
     """Override application settings for the duration of the test suite."""
     settings = get_settings()
     
@@ -34,6 +34,10 @@ def override_settings():
     orig_mfa = settings.FF_MFA_REQUIRED
     orig_otel = settings.OTEL_ENABLED
     orig_secret = settings.SECRET_KEY
+    orig_qdrant_path = settings.QDRANT_PATH
+    
+    # Create isolated per-test-session directory for Qdrant/vector storage
+    qdrant_test_dir = tmp_path_factory.mktemp("qdrant_test_data")
     
     # Apply test overrides
     settings.DATABASE_URL = TEST_DB_URL
@@ -45,6 +49,26 @@ def override_settings():
     settings.MASTRA_ENABLED = False
     settings.ENKRYPTAI_ENABLED = False
     settings.SECRET_KEY = "sentinelflow-test-secret-key-at-least-32-bytes-long"
+    settings.QDRANT_PATH = str(qdrant_test_dir)
+
+    # Re-initialize vector DB client if already imported to use isolated temp path
+    try:
+        import app.core.vector_db as vdb
+        if hasattr(vdb, "qdrant_client") and settings.QDRANT_MODE == "local":
+            try:
+                if hasattr(vdb.qdrant_client, "close"):
+                    vdb.qdrant_client.close()
+            except Exception:
+                pass
+            os.makedirs(settings.QDRANT_PATH, exist_ok=True)
+            from qdrant_client import QdrantClient
+            vdb.qdrant_client = QdrantClient(
+                path=settings.QDRANT_PATH,
+                timeout=settings.QDRANT_TIMEOUT,
+            )
+            vdb.chroma_store = vdb.ChromaFallbackStore()
+    except Exception:
+        pass
 
     import app.core.database
     orig_engine = app.core.database.engine
@@ -73,11 +97,21 @@ def override_settings():
     settings.FF_SLACK_NOTIFICATIONS = orig_slack
     settings.FF_MFA_REQUIRED = orig_mfa
     settings.OTEL_ENABLED = orig_otel
+    settings.QDRANT_PATH = orig_qdrant_path
 
     app.core.database.engine = orig_engine
     app.core.database.SessionLocal = orig_session_local
     app.main.engine = orig_engine
     app.main.SessionLocal = orig_session_local
+
+    # Flush and shutdown OpenTelemetry tracer provider before pytest closes stdout/stderr
+    try:
+        from opentelemetry import trace
+        provider = trace.get_tracer_provider()
+        if hasattr(provider, "shutdown"):
+            provider.shutdown()
+    except Exception:
+        pass
 
 
 # ── Database Fixtures ─────────────────────────────────────────

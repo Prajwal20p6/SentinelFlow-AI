@@ -6,7 +6,7 @@ Handles document uploading, text extraction, version control, semantic vector se
 import datetime
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from ..models.models import KnowledgeDocument
+from ..models.models import KnowledgeDocument, _utcnow
 from ..core.vector_db import get_text_embedding, in_memory_store, chroma_store, faiss_store, qdrant_client
 from qdrant_client.http.models import PointStruct
 from ..core.config import get_settings
@@ -185,7 +185,7 @@ class KnowledgeBaseService:
         doc.tags = tags
         doc.content = content
         doc.version = version
-        doc.updated_at = datetime.datetime.utcnow()
+        doc.updated_at = _utcnow()
         db.commit()
         db.refresh(doc)
 
@@ -204,7 +204,7 @@ class KnowledgeBaseService:
 
         doc.status = "approved"
         doc.approved_by = approver
-        doc.approved_at = datetime.datetime.utcnow()
+        doc.approved_at = _utcnow()
         db.commit()
         db.refresh(doc)
         return doc

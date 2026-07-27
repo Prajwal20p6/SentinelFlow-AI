@@ -285,7 +285,7 @@ def get_service_metrics(
     Returns simulated metrics based on service name and time range.
     """
     import random
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     
     # Generate realistic metrics based on service name
     base_cpu = random.uniform(20, 80)
@@ -305,7 +305,7 @@ def get_service_metrics(
         base_latency -= 30
     
     # Generate time series data
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     time_points = []
     if range == "1h":
         points = 60
@@ -352,7 +352,7 @@ def get_service_logs(
     Returns simulated log entries based on service name.
     """
     import random
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     
     log_levels = ["INFO", "INFO", "INFO", "WARNING", "ERROR"]
     log_messages = [
@@ -385,7 +385,7 @@ def get_service_logs(
     ]
     
     logs = []
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
     for i in range(limit):
         timestamp = now - timedelta(seconds=random.randint(0, 3600))

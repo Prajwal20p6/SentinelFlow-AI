@@ -4,7 +4,7 @@ Generates nodes and edges representing lateral compromises, MITRE technique tags
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 
 class AttackGraphService:
@@ -16,7 +16,7 @@ class AttackGraphService:
         Dynamically synthesize a realistic lateral compromise path graph mapping
         compromised assets (Users, Devices, Services, Data) with MITRE mappings and dwell times.
         """
-        base_time = datetime.utcnow() - timedelta(minutes=45)
+        base_time = datetime.now(timezone.utc) - timedelta(minutes=45)
         
         # We model dynamic paths depending on severity & incident type (e.g., CPU vs OOM vs Security Breach)
         is_breach = "breach" in incident_type.lower() or "security" in incident_type.lower() or severity == "CRITICAL"

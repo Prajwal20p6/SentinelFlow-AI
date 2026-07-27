@@ -5,7 +5,7 @@ Validates governance thresholds (Autonomy level, Restricted Services, Confidence
 
 import datetime
 from sqlalchemy.orm import Session
-from ..models.models import ExecutionConfig, TimelineEvent, Incident
+from ..models.models import ExecutionConfig, TimelineEvent, Incident, _utcnow
 from ..core.observability import logger
 
 class ExecutionModeService:
@@ -120,7 +120,7 @@ class ExecutionModeService:
                     return False, f"Governance: Confidence score ({confidence_score}%) is below P0 threshold (85%)."
                 
                 # Check rate limit: 10/min
-                one_min_ago = datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+                one_min_ago = _utcnow() - datetime.timedelta(seconds=60)
                 auto_count = db.query(TimelineEvent).filter(
                     TimelineEvent.event_type == "REMEDIATION_EXECUTED",
                     TimelineEvent.actor == "sentinelflow-autopilot",
@@ -143,7 +143,7 @@ class ExecutionModeService:
                     return False, f"Governance: Confidence score ({confidence_score}%) is below P1 threshold (90%)."
                 
                 # Check rate limit: 5/min
-                one_min_ago = datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+                one_min_ago = _utcnow() - datetime.timedelta(seconds=60)
                 auto_count = db.query(TimelineEvent).filter(
                     TimelineEvent.event_type == "REMEDIATION_EXECUTED",
                     TimelineEvent.actor == "sentinelflow-autopilot",
@@ -171,7 +171,7 @@ class ExecutionModeService:
                 return False, f"Governance: Confidence score ({confidence_score}%) is below configured threshold ({cfg.min_confidence_score}%)."
             
             # Check rate limiting from DB config
-            one_min_ago = datetime.datetime.utcnow() - datetime.timedelta(seconds=60)
+            one_min_ago = _utcnow() - datetime.timedelta(seconds=60)
             auto_count = db.query(TimelineEvent).filter(
                 TimelineEvent.event_type == "REMEDIATION_EXECUTED",
                 TimelineEvent.actor == "sentinelflow-autopilot",
