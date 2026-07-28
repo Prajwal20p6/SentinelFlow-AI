@@ -51,22 +51,11 @@ def override_settings(tmp_path_factory):
     settings.SECRET_KEY = "sentinelflow-test-secret-key-at-least-32-bytes-long"
     settings.QDRANT_PATH = str(qdrant_test_dir)
 
-    # Re-initialize vector DB client if already imported to use isolated temp path
+    # Reset any cached vector DB client instances so they lazily initialize using test QDRANT_PATH
     try:
         import app.core.vector_db as vdb
-        if hasattr(vdb, "qdrant_client") and settings.QDRANT_MODE == "local":
-            try:
-                if hasattr(vdb.qdrant_client, "close"):
-                    vdb.qdrant_client.close()
-            except Exception:
-                pass
-            os.makedirs(settings.QDRANT_PATH, exist_ok=True)
-            from qdrant_client import QdrantClient
-            vdb.qdrant_client = QdrantClient(
-                path=settings.QDRANT_PATH,
-                timeout=settings.QDRANT_TIMEOUT,
-            )
-            vdb.chroma_store = vdb.ChromaFallbackStore()
+        if hasattr(vdb, "reset_qdrant_client"):
+            vdb.reset_qdrant_client()
     except Exception:
         pass
 

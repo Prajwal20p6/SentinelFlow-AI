@@ -252,25 +252,79 @@ class FAISSFallbackStore:
             return []
 
 
+# ── Lazy Client & Store Getters ──────────────────────────────
+_qdrant_client_instance = None
+_chroma_store_instance = None
+
+
+def get_qdrant_client():
+    """Lazily initialize and return the Qdrant client instance."""
+    global _qdrant_client_instance
+    if _qdrant_client_instance is None:
+        current_settings = get_settings()
+        if current_settings.QDRANT_MODE == "server":
+            _qdrant_client_instance = QdrantClient(
+                host=current_settings.QDRANT_HOST,
+                port=current_settings.QDRANT_PORT,
+                timeout=current_settings.QDRANT_TIMEOUT,
+            )
+        else:
+            os.makedirs(current_settings.QDRANT_PATH, exist_ok=True)
+            _qdrant_client_instance = QdrantClient(
+                path=current_settings.QDRANT_PATH,
+                timeout=current_settings.QDRANT_TIMEOUT,
+            )
+    return _qdrant_client_instance
+
+
+def reset_qdrant_client():
+    """Reset and close cached qdrant client instance."""
+    global _qdrant_client_instance, _chroma_store_instance
+    if _qdrant_client_instance is not None:
+        try:
+            if hasattr(_qdrant_client_instance, "close"):
+                _qdrant_client_instance.close()
+        except Exception:
+            pass
+        _qdrant_client_instance = None
+    _chroma_store_instance = None
+
+
+def get_chroma_store():
+    """Lazily initialize and return the ChromaDB fallback store."""
+    global _chroma_store_instance
+    if _chroma_store_instance is None:
+        _chroma_store_instance = ChromaFallbackStore()
+    return _chroma_store_instance
+
+
+class _QdrantClientProxy:
+    """Lazy proxy object delegating all calls to get_qdrant_client()."""
+
+    def __getattr__(self, name):
+        client = get_qdrant_client()
+        return getattr(client, name)
+
+    def __bool__(self):
+        return True
+
+
+class _ChromaStoreProxy:
+    """Lazy proxy object delegating all calls to get_chroma_store()."""
+
+    def __getattr__(self, name):
+        store = get_chroma_store()
+        return getattr(store, name)
+
+    def __bool__(self):
+        return True
+
+
 # ── Instantiations ───────────────────────────────────────────
 in_memory_store = InMemoryVectorStore()
-chroma_store = ChromaFallbackStore()
+chroma_store = _ChromaStoreProxy()
 faiss_store = FAISSFallbackStore(settings.QDRANT_VECTOR_SIZE)
-
-# ── Qdrant Client Initialization ─────────────────────────────
-os.makedirs(settings.QDRANT_PATH, exist_ok=True)
-
-if settings.QDRANT_MODE == "server":
-    qdrant_client = QdrantClient(
-        host=settings.QDRANT_HOST,
-        port=settings.QDRANT_PORT,
-        timeout=settings.QDRANT_TIMEOUT,
-    )
-else:
-    qdrant_client = QdrantClient(
-        path=settings.QDRANT_PATH,
-        timeout=settings.QDRANT_TIMEOUT,
-    )
+qdrant_client = _QdrantClientProxy()
 
 
 # ── Collection Management ────────────────────────────────────
