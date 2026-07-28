@@ -66,6 +66,13 @@ Click the button below to deploy the entire SentinelFlow AI ecosystem (FastAPI, 
 ## 1. Project Overview
 SentinelFlow AI is a self-healing **Autonomous Incident Response & Post-Mortem Generation Platform**. Built for modern distributed Kubernetes and cloud-native systems, SentinelFlow AI ingests telemetry anomalies, invokes a collaborative team of specialized AI agents to analyze threats, orchestrates containment playbooks, and executes rollouts safely under **Enkrypt AI policy envelopes** and cryptographic **Human-in-the-Loop (HITL) approvals**.
 
+### 📚 Project Documentation & Interview Resources
+- **[Final Project Summary](FINAL_PROJECT_SUMMARY.md)** — Architectural highlights, engineering process, and project status
+- **[Resume Description & Bullet Points](RESUME_PROJECT_DESCRIPTION.md)** — Resume-ready bullet points, detailed summary, and key achievements
+- **[Interview Guide](INTERVIEW_GUIDE.md)** — Architecture walkthrough, technical decision rationales, and interview Q&A
+- **[STAR Behavioral Interview Stories](STAR_STORIES.md)** — 10 detailed STAR-formatted engineering history stories
+- **[Final Project Statistics](FINAL_PROJECT_STATS.md)** — Independently verified line counts, test suite metrics, and status breakdown
+
 ## 2. Problem Statement
 * 🚨 **Alert Fatigue:** SOC teams are overwhelmed by thousands of raw logs and telemetry metrics.
 * 🐢 **High Resolution MTTR:** Manual analysis and correlation across systems takes hours, leaving clusters vulnerable.
