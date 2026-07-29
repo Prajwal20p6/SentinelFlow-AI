@@ -4,7 +4,7 @@ Covers all API endpoints with strict validation.
 """
 
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional, Any, Union
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 
 
@@ -428,13 +428,13 @@ class RAGSearchRequest(BaseModel):
 
 
 class RAGSearchResult(BaseModel):
-    id: int
+    id: Union[int, str]
     score: float
     title: str
     content: str
-    tags: list[str]
-    severity: str
-    category: str
+    tags: list[str] = []
+    severity: Optional[str] = ""
+    category: Optional[str] = ""
 
 
 # ══════════════════════════════════════════════════════════════

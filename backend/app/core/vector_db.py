@@ -35,30 +35,25 @@ try:
 except ImportError:
     FAISS_AVAILABLE = False
 
-try:
-    from sentence_transformers import SentenceTransformer
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-
 # ── Model Initializer ────────────────────────────────────────
 model = None
-if SENTENCE_TRANSFORMERS_AVAILABLE:
-    try:
-        # Load lightweight sentence embedding model (384 dimensions)
-        model = SentenceTransformer('all-MiniLM-L6-v2')
-        logger.info("embeddings_model_loaded", model="all-MiniLM-L6-v2")
-    except Exception as e:
-        logger.warning("embeddings_model_fallback", error=str(e))
+SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 
 # ── Embedding Generator ─────────────────────────────────────
+_embedding_cache: dict[str, list[float]] = {}
+
 def get_text_embedding(text: str) -> list[float]:
-    """Generate a text embedding vector (384 dimensions)."""
+    """Generate a text embedding vector (384 dimensions) with LRU cache."""
+    if text in _embedding_cache:
+        return _embedding_cache[text]
+
     if model is not None:
         try:
             emb = model.encode(text)
-            return emb.tolist()
+            vec = emb.tolist()
+            _embedding_cache[text] = vec
+            return vec
         except Exception as e:
             logger.warning("embeddings_encode_fallback", error=str(e))
             
@@ -164,24 +159,29 @@ class ChromaFallbackStore:
         if not self.collection:
             return []
         try:
-            where = {}
-            if category_filter:
-                where = {"category": category_filter}
+            where = {"category": category_filter} if category_filter else None
                 
-            results = self.collection.query(
-                query_embeddings=[query_vector],
-                n_results=limit,
-                where=where
-            )
+            query_kwargs = {
+                "query_embeddings": [query_vector],
+                "n_results": limit,
+            }
+            if where:
+                query_kwargs["where"] = where
+                
+            results = self.collection.query(**query_kwargs)
             
             hits = []
             if results and results.get("ids") and len(results["ids"][0]) > 0:
                 for i in range(len(results["ids"][0])):
                     payload = results["metadatas"][0][i]
                     dist = results["distances"][0][i] if "distances" in results else 0.0
-                    score = 1.0 / (1.0 + dist)
+                    raw_id = results["ids"][0][i]
+                    try:
+                        point_id = int(raw_id)
+                    except Exception:
+                        point_id = str(raw_id)
                     hits.append({
-                        "id": int(results["ids"][0][i]),
+                        "id": point_id,
                         "score": score,
                         "title": payload.get("title", ""),
                         "content": payload.get("content", ""),
@@ -508,6 +508,7 @@ def search_similar_runbooks(
             results = CircuitBreakerService.call(
                 "qdrant",
                 qdrant_client.query_points,
+                timeout_sec=0.5,
                 collection_name=settings.QDRANT_COLLECTION,
                 query=query_vector,
                 limit=limit,

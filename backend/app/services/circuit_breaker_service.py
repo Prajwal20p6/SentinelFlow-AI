@@ -96,10 +96,10 @@ class CircuitBreakerService:
         return cls._breakers[service_name]
 
     @classmethod
-    def call(cls, service_name: str, func: Callable, *args, **kwargs) -> Any:
+    def call(cls, service_name: str, func: Callable, *args, timeout_sec: float = 2.0, **kwargs) -> Any:
         """
         Executes a callable protected by the circuit breaker for service_name.
-        Raises CircuitBreakerOpenException if the circuit is OPEN.
+        Raises CircuitBreakerOpenException if the circuit is OPEN or times out.
         """
         breaker = cls.get_breaker(service_name)
         state = breaker.check_state()
@@ -108,11 +108,21 @@ class CircuitBreakerService:
             logger.debug("circuit_breaker_blocked_call", service=service_name)
             raise CircuitBreakerOpenException(f"Circuit breaker for service '{service_name}' is OPEN. Failing fast.")
 
+        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+        executor = ThreadPoolExecutor(max_workers=1)
         try:
-            result = func(*args, **kwargs)
+            future = executor.submit(func, *args, **kwargs)
+            result = future.result(timeout=timeout_sec)
+            executor.shutdown(wait=False)
             breaker.record_success()
             return result
+        except FuturesTimeoutError:
+            executor.shutdown(wait=False, cancel_futures=True)
+            breaker.record_failure()
+            logger.warning("circuit_breaker_call_timeout", service=service_name, timeout=timeout_sec)
+            raise TimeoutError(f"Call to service '{service_name}' timed out after {timeout_sec}s")
         except Exception as e:
+            executor.shutdown(wait=False)
             breaker.record_failure()
             logger.warning("circuit_breaker_call_failed", service=service_name, error=str(e))
             raise e
