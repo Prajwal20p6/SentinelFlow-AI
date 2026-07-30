@@ -3,6 +3,7 @@ SentinelFlow AI — Authentication Service
 Handles user registration, login, MFA setup, and token management with session tracking.
 """
 
+import os
 import pyotp
 import qrcode
 import io
@@ -228,12 +229,32 @@ def generate_reset_token(email: str) -> str:
 
 
 def seed_default_users(db: Session) -> None:
-    """Seed default users for development/demo mode with verified status."""
+    """Seed default users for development/demo mode with verified status using environment variables."""
+    admin_pw = os.getenv("DEFAULT_ADMIN_PASSWORD")
+    if not admin_pw:
+        logger.warning("seed_password_missing", user="admin@sentinelflow.ai", env_var="DEFAULT_ADMIN_PASSWORD")
+        admin_pw = "admin123"
+
+    engineer_pw = os.getenv("DEFAULT_ENGINEER_PASSWORD")
+    if not engineer_pw:
+        logger.warning("seed_password_missing", user="engineer@sentinelflow.ai", env_var="DEFAULT_ENGINEER_PASSWORD")
+        engineer_pw = "eng123"
+
+    viewer_pw = os.getenv("DEFAULT_VIEWER_PASSWORD")
+    if not viewer_pw:
+        logger.warning("seed_password_missing", user="viewer@sentinelflow.ai", env_var="DEFAULT_VIEWER_PASSWORD")
+        viewer_pw = "view123"
+
+    judge_pw = os.getenv("DEFAULT_JUDGE_PASSWORD")
+    if not judge_pw:
+        logger.warning("seed_password_missing", user="judge@sentinelflow.ai", env_var="DEFAULT_JUDGE_PASSWORD")
+        judge_pw = "JudgeDemo123!"
+
     defaults = [
-        {"email": "admin@sentinelflow.ai", "password": "admin123", "full_name": "Admin User", "role": "admin"},
-        {"email": "engineer@sentinelflow.ai", "password": "eng123", "full_name": "SRE Engineer", "role": "engineer"},
-        {"email": "viewer@sentinelflow.ai", "password": "view123", "full_name": "Dashboard Viewer", "role": "viewer"},
-        {"email": "judge@sentinelflow.ai", "password": "JudgeDemo123!", "full_name": "Hackathon Judge", "role": "engineer"},
+        {"email": "admin@sentinelflow.ai", "password": admin_pw, "full_name": "Admin User", "role": "admin"},
+        {"email": "engineer@sentinelflow.ai", "password": engineer_pw, "full_name": "SRE Engineer", "role": "engineer"},
+        {"email": "viewer@sentinelflow.ai", "password": viewer_pw, "full_name": "Dashboard Viewer", "role": "viewer"},
+        {"email": "judge@sentinelflow.ai", "password": judge_pw, "full_name": "Hackathon Judge", "role": "engineer"},
     ]
 
     for u in defaults:
@@ -250,12 +271,4 @@ def seed_default_users(db: Session) -> None:
             )
             logger.info("seed_user_created", email=u['email'], role=u['role'])
         else:
-            existing.hashed_password = hash_password(u["password"])
-            existing.is_active = True
-            existing.email_verified = True
-            # Ensure MFA is disabled for demo/seed accounts so login works without TOTP
-            existing.mfa_enabled = False
-            existing.mfa_secret = None
-            existing.mfa_backup_codes = None
-            db.commit()
-            logger.info("seed_user_synced", email=u['email'])
+            logger.debug("seed_user_exists_preserved", email=u['email'])
