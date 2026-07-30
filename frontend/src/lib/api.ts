@@ -1,13 +1,11 @@
 import { TokenResponse, User, Incident, IncidentDetail, AuditEntry, ClusterTopology, PromptTemplate, ObservabilitySummary, CommandResult } from '../types';
 
-const getApiBaseUrl = () => {
+export const getApiBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
   if (typeof window !== 'undefined') {
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return 'https://backend-production-f51a.up.railway.app/api/v1';
-    }
+    return `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
   }
   return 'http://127.0.0.1:8000/api/v1';
 };

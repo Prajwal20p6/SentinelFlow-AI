@@ -4,19 +4,7 @@ import React from 'react';
 import { MastraExecutionCenter } from '../../../components/mastra/MastraExecutionCenter';
 import { useMastraStore } from '../../../store/mastraStore';
 import { useIncidentStore } from '../../../store/incidentStore';
-import { api } from '../../../lib/api';
-
-const getApiBaseUrl = () => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  if (typeof window !== 'undefined') {
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return 'https://backend-production-f51a.up.railway.app/api/v1';
-    }
-  }
-  return 'http://127.0.0.1:8000/api/v1';
-};
+import { api, getApiBaseUrl } from '../../../lib/api';
 
 const STEP_KEYS = ['DETECT_ANOMALY','RETRIEVE_CONTEXT','RETRIEVE_RUNBOOKS','PLAN_REMEDIATION','CONTRADICTION_CHECK','VALIDATE','APPROVE_DECISION','EXECUTE_REMEDIATION'];
 const STEP_LABELS: Record<string, string> = {

@@ -4,17 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { RunbookStoreView } from '../../../components/dashboard/RunbookStoreView';
 import { useAuthStore } from '../../../store/authStore';
 
-const getApiBaseUrl = () => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  if (typeof window !== 'undefined') {
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return 'https://backend-production-f51a.up.railway.app/api/v1';
-    }
-  }
-  return 'http://127.0.0.1:8000/api/v1';
-};
+import { getApiBaseUrl } from '../../../lib/api';
 
 export default function KnowledgePage() {
   const { user } = useAuthStore();

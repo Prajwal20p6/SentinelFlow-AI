@@ -6,19 +6,7 @@ import { SecuritySettingsView } from '../../../components/dashboard/SecuritySett
 import { useAuthStore } from '../../../store/authStore';
 import { useIncidentStore } from '../../../store/incidentStore';
 import { useMastraStore } from '../../../store/mastraStore';
-import { api } from '../../../lib/api';
-
-const getApiBaseUrl = () => {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  if (typeof window !== 'undefined') {
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return 'https://backend-production-f51a.up.railway.app/api/v1';
-    }
-  }
-  return 'http://127.0.0.1:8000/api/v1';
-};
+import { api, getApiBaseUrl } from '../../../lib/api';
 
 export default function SettingsPage() {
   const router = useRouter();

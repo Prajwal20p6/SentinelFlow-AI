@@ -1,8 +1,4 @@
-/**
- * SentinelFlow AI — WebSocket Client
- * Premium client manager supporting reconnect backoffs, heartbeat keepalives,
- * outgoing message queues, and callback event registrations.
- */
+import { getApiBaseUrl } from './api';
 
 type WebSocketCallback = (data: any) => void;
 
@@ -31,17 +27,18 @@ class WebSocketClient {
     if (process.env.NEXT_PUBLIC_WS_URL) {
       wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}/${this.session_id}?token=${token}`;
     } else {
-      const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      let backendHost = '127.0.0.1:8000';
-      if (process.env.NEXT_PUBLIC_API_URL) {
-        try {
-          const url = new URL(process.env.NEXT_PUBLIC_API_URL);
-          backendHost = url.host;
-        } catch (e) {}
-      } else if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        backendHost = 'backend-production-f51a.up.railway.app';
+      const apiBase = getApiBaseUrl();
+      const isSecure = typeof window !== 'undefined' ? window.location.protocol === 'https:' : false;
+      const wsProtocol = isSecure ? 'wss:' : 'ws:';
+
+      try {
+        const url = new URL(apiBase);
+        const host = url.host;
+        const basePath = url.pathname.endsWith('/') ? url.pathname.slice(0, -1) : url.pathname;
+        wsUrl = `${wsProtocol}//${host}${basePath}/ws/${this.session_id}?token=${token}`;
+      } catch (e) {
+        wsUrl = `${wsProtocol}//127.0.0.1:8000/api/v1/ws/${this.session_id}?token=${token}`;
       }
-      wsUrl = `${protocol}//${backendHost}/api/v1/ws/${this.session_id}?token=${token}`;
     }
 
     this.socket = new WebSocket(wsUrl);
