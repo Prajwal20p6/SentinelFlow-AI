@@ -35,31 +35,46 @@ try:
 except ImportError:
     FAISS_AVAILABLE = False
 
-# ── Model Initializer ────────────────────────────────────────
-model = None
-SENTENCE_TRANSFORMERS_AVAILABLE = False
+# ── Model Initializer & Lazy Getter ──────────────────────────
+_embedding_model = None
+_embedding_model_attempted = False
+
+
+def get_embedding_model():
+    """Lazily load and cache the SentenceTransformer model singleton on first use."""
+    global _embedding_model, _embedding_model_attempted
+    if _embedding_model is not None:
+        return _embedding_model
+    if _embedding_model_attempted:
+        return None
+
+    _embedding_model_attempted = True
+    try:
+        from sentence_transformers import SentenceTransformer
+        _embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        logger.info("embeddings_model_loaded", model="all-MiniLM-L6-v2")
+        return _embedding_model
+    except Exception as e:
+        logger.warning("embeddings_model_fallback", error=str(e))
+        return None
+
+
+def reset_embedding_model():
+    """Reset embedding model state (useful for testing)."""
+    global _embedding_model, _embedding_model_attempted
+    _embedding_model = None
+    _embedding_model_attempted = False
 
 
 # ── Embedding Generator ─────────────────────────────────────
 _embedding_cache: dict[str, list[float]] = {}
 
-def get_text_embedding(text: str) -> list[float]:
-    """Generate a text embedding vector (384 dimensions) with LRU cache."""
-    if text in _embedding_cache:
-        return _embedding_cache[text]
 
-    if model is not None:
-        try:
-            emb = model.encode(text)
-            vec = emb.tolist()
-            _embedding_cache[text] = vec
-            return vec
-        except Exception as e:
-            logger.warning("embeddings_encode_fallback", error=str(e))
-            
-    # Deterministic pseudo-embedding backup
-    text_hash = sum(ord(c) for c in text)
-    rng = np.random.RandomState(text_hash % 10000)
+def _get_fallback_embedding(text: str) -> list[float]:
+    """Fallback pseudo-embedding generator using MD5 hashing to prevent anagram collisions."""
+    import hashlib
+    text_hash = int(hashlib.md5(text.encode('utf-8')).hexdigest(), 16)
+    rng = np.random.RandomState(text_hash % (2**31 - 1))
     base_vec = rng.randn(settings.QDRANT_VECTOR_SIZE).astype(np.float32)
 
     keyword_clusters = {
@@ -83,6 +98,26 @@ def get_text_embedding(text: str) -> list[float]:
         base_vec = base_vec / norm
 
     return base_vec.tolist()
+
+
+def get_text_embedding(text: str) -> list[float]:
+    """Generate a text embedding vector (384 dimensions) using SentenceTransformer or fallback."""
+    if text in _embedding_cache:
+        return _embedding_cache[text]
+
+    emb_model = get_embedding_model()
+    if emb_model is not None:
+        try:
+            emb = emb_model.encode(text)
+            vec = emb.tolist()
+            _embedding_cache[text] = vec
+            return vec
+        except Exception as e:
+            logger.warning("embeddings_encode_fallback", error=str(e))
+
+    vec = _get_fallback_embedding(text)
+    _embedding_cache[text] = vec
+    return vec
 
 
 # ── In-Memory Vector Store Fallback ──────────────────────────
