@@ -43,6 +43,8 @@ _embedding_model_attempted = False
 def get_embedding_model():
     """Lazily load and cache the SentenceTransformer model singleton on first use."""
     global _embedding_model, _embedding_model_attempted
+    if getattr(settings, "LOW_MEMORY_MODE", False) or getattr(settings, "DISABLE_ML_EMBEDDINGS", False):
+        return None
     if _embedding_model is not None:
         return _embedding_model
     if _embedding_model_attempted:
@@ -170,7 +172,7 @@ class ChromaFallbackStore:
     def __init__(self):
         self.client = None
         self.collection = None
-        if CHROMA_AVAILABLE:
+        if CHROMA_AVAILABLE and not getattr(settings, "LOW_MEMORY_MODE", False) and not getattr(settings, "DISABLE_LOCAL_VECTOR_DB", False):
             try:
                 chroma_path = os.path.join(settings.QDRANT_PATH, "chroma") if hasattr(settings, "QDRANT_PATH") else "./data/chroma"
                 self.client = chromadb.PersistentClient(path=chroma_path)
@@ -237,7 +239,7 @@ class FAISSFallbackStore:
         self.dimension = dimension
         self.index = None
         self.id_map = {}
-        if FAISS_AVAILABLE:
+        if FAISS_AVAILABLE and not getattr(settings, "LOW_MEMORY_MODE", False) and not getattr(settings, "DISABLE_LOCAL_VECTOR_DB", False):
             try:
                 self.index = faiss.IndexFlatIP(dimension)
             except Exception as e:
@@ -367,6 +369,11 @@ INCIDENT_COLLECTION = "incidents"
 
 def init_qdrant_collections() -> None:
     """Initialize collections and seed runbooks, including agent memory collections."""
+    if getattr(settings, "LOW_MEMORY_MODE", False) or getattr(settings, "DISABLE_LOCAL_VECTOR_DB", False):
+        logger.info("vector_db_low_memory_mode_active", mode="in_memory_only")
+        _seed_runbooks()
+        return
+
     try:
         collections = qdrant_client.get_collections().collections
         existing_names = {c.name for c in collections}
@@ -490,29 +497,32 @@ def _seed_runbooks() -> None:
     ]
 
     points = []
+    low_mem = getattr(settings, "LOW_MEMORY_MODE", False) or getattr(settings, "DISABLE_LOCAL_VECTOR_DB", False)
+
     for rb in runbooks:
         vec = get_text_embedding(rb["content"])
         
         # Populate fallbacks
         in_memory_store.upsert(rb["id"], vec, rb)
-        chroma_store.upsert(rb["id"], vec, rb)
-        faiss_store.upsert(rb["id"], vec, rb)
-        
-        points.append(
-            PointStruct(
-                id=rb["id"],
-                vector=vec,
-                payload=rb,
+        if not low_mem:
+            chroma_store.upsert(rb["id"], vec, rb)
+            faiss_store.upsert(rb["id"], vec, rb)
+            points.append(
+                PointStruct(
+                    id=rb["id"],
+                    vector=vec,
+                    payload=rb,
+                )
             )
-        )
 
-    try:
-        qdrant_client.upsert(
-            collection_name=settings.QDRANT_COLLECTION,
-            points=points,
-        )
-    except Exception as e:
-        logger.warning("qdrant_seed_failed", error=str(e))
+    if points and not low_mem:
+        try:
+            qdrant_client.upsert(
+                collection_name=settings.QDRANT_COLLECTION,
+                points=points,
+            )
+        except Exception as e:
+            logger.warning("qdrant_seed_failed", error=str(e))
 
 
 # ── Search & Retrieval ───────────────────────────────────────

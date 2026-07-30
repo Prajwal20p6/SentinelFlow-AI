@@ -23,8 +23,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
     LOG_LEVEL: str = "INFO"
-    API_V1_PREFIX: str = "/api/v1"
-    ALLOWED_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
+    # ── Memory & Resource Optimization Flags ──────────────────
+    LOW_MEMORY_MODE: bool = False
+    DISABLE_ML_EMBEDDINGS: bool = False
+    DISABLE_LOCAL_VECTOR_DB: bool = False
 
     # ── Server ───────────────────────────────────────────────
     BACKEND_HOST: str = "127.0.0.1"
