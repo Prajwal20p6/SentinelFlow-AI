@@ -12,6 +12,7 @@ import secrets
 import jwt
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from ..core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
 from ..core.config import get_settings
@@ -23,13 +24,14 @@ settings = get_settings()
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     """Authenticate a user by email and password."""
-    user = db.query(User).filter(User.email == email).first()
+    clean_email = email.strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == clean_email).first()
     if user and verify_password(password, user.hashed_password):
         # Migrating bcrypt passwords to Argon2 transparently on successful login
         if not user.hashed_password.startswith("$argon2"):
             user.hashed_password = hash_password(password)
             db.commit()
-            logger.info("user_password_migrated_to_argon2", email=email)
+            logger.info("user_password_migrated_to_argon2", email=clean_email)
         return user
     return None
 
@@ -271,4 +273,9 @@ def seed_default_users(db: Session) -> None:
             )
             logger.info("seed_user_created", email=u['email'], role=u['role'])
         else:
-            logger.debug("seed_user_exists_preserved", email=u['email'])
+            existing.hashed_password = hash_password(u["password"])
+            existing.is_active = True
+            existing.email_verified = True
+            existing.mfa_enabled = False
+            db.commit()
+            logger.info("seed_user_synced", email=u['email'])
