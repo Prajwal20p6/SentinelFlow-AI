@@ -49,8 +49,16 @@ class APIClient {
     options: RequestInit = {},
     mfaToken?: string
   ): Promise<T> {
+    const isPublicAuthRoute = [
+      '/auth/login',
+      '/auth/register',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      '/auth/verify-email'
+    ].some(r => path.startsWith(r));
+
     const headers = new Headers(options.headers || {});
-    if (this.token) {
+    if (this.token && !isPublicAuthRoute) {
       headers.set('Authorization', `Bearer ${this.token}`);
     }
     if (mfaToken) {
@@ -65,7 +73,7 @@ class APIClient {
       headers,
     });
 
-    if (response.status === 401 && this.refreshToken && path !== '/auth/refresh' && path !== '/auth/login') {
+    if (response.status === 401 && this.refreshToken && !isPublicAuthRoute && path !== '/auth/refresh') {
       try {
         const refreshResp = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
           method: 'POST',
@@ -97,7 +105,7 @@ class APIClient {
         }
         throw new Error('Unauthorized');
       }
-    } else if (response.status === 401) {
+    } else if (response.status === 401 && !isPublicAuthRoute) {
       this.clearTokens();
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('auth_required'));
@@ -105,7 +113,7 @@ class APIClient {
       throw new Error('Unauthorized');
     }
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
       throw { status: response.status, data };
