@@ -189,7 +189,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 onChange={e => setRegRole(e.target.value)}
                 className="w-full px-4 py-2.5 bg-[#0d111a] border border-white/10 rounded-xl focus:outline-none focus:border-emerald-500 text-slate-200 transition-all text-sm"
               >
-                <option value="responder">Responder (SecOps Engineer)</option>
+                <option value="engineer">Responder (SecOps Engineer)</option>
                 <option value="executive">Executive (Read & Approve)</option>
                 <option value="viewer">Viewer (Read-only)</option>
                 <option value="admin">Administrator</option>

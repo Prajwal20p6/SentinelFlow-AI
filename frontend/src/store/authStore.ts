@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   authView: 'login',
   regFullName: '',
   regOrgId: '',
-  regRole: 'responder',
+  regRole: 'engineer',
   resetToken: '',
   resetSuccessMsg: '',
   sessions: [],
