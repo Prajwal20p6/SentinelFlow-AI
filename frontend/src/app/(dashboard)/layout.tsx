@@ -25,13 +25,21 @@ export default function DashboardLayout({
     setIncidents,
   } = useIncidentStore();
 
-  // Redirect unauthenticated users to root login page
+  // Redirect unauthenticated users to root login page & hydrate session
   useEffect(() => {
     const token = localStorage.getItem('sf_token');
     if (!isLoggedIn && !token) {
       router.push('/');
+    } else if (token && (!isLoggedIn || !user)) {
+      setIsLoggedIn(true);
+      const stored = localStorage.getItem('sf_user');
+      if (stored) {
+        try {
+          setUser(JSON.parse(stored));
+        } catch (e) {}
+      }
     }
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn, user, router, setIsLoggedIn, setUser]);
 
   // Real-time WebSocket Subscriptions for the dashboard shell
   useWebSocket('IncidentUpdate', () => {
@@ -47,8 +55,12 @@ export default function DashboardLayout({
       .catch(console.error);
   });
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch (e) {}
     localStorage.removeItem('sf_token');
+    localStorage.removeItem('sf_refresh_token');
     localStorage.removeItem('sf_user');
     setIsLoggedIn(false);
     setUser(null);
