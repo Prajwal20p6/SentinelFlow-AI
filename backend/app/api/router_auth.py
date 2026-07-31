@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from sqlalchemy.orm import Session
 from typing import Optional, List
 import jwt
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from sqlalchemy import func
 
 from ..core.database import get_db
 from ..core.config import get_settings
@@ -216,7 +217,8 @@ def revoke_user_session(
 @router.post("/forgot-password")
 def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """Initiate password reset flow (returns reset token for testing)."""
-    user = db.query(User).filter(User.email == body.email).first()
+    clean_email = body.email.strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == clean_email).first()
     if not user:
         # Avoid user enumeration by returning generic success message
         return {"message": "If the email exists, a reset link has been generated."}
@@ -243,8 +245,9 @@ def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
 
+    clean_email = email.strip().lower() if email else ""
     user = db.query(User).filter(
-        User.email == email,
+        func.lower(User.email) == clean_email,
         User.password_reset_token == body.token
     ).first()
     if not user:
