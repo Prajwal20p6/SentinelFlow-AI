@@ -1398,14 +1398,52 @@ def _enkrypt_ai_safety_check(command: str) -> tuple[str, float, str]:
                 risk_score=risk_score,
                 command=command[:100],
             )
+            try:
+                from .websocket_service import broadcast_enkrypt_validation
+                broadcast_enkrypt_validation(
+                    action=command[:100],
+                    status=status,
+                    risk_score=risk_score,
+                    assessment=assessment,
+                    violations=violations,
+                    available=True,
+                )
+            except Exception:
+                pass
             return (status, risk_score, assessment)
 
         except Exception as e:
             logger.warning("enkrypt_ai_sdk_unavailable_fallback_to_local", error=str(e))
-            return evaluate_command_safety(command)
+            st, rs, ass = evaluate_command_safety(command)
+            try:
+                from .websocket_service import broadcast_enkrypt_validation
+                broadcast_enkrypt_validation(
+                    action=command[:100],
+                    status=st,
+                    risk_score=rs,
+                    assessment=f"Enkrypt AI SDK Unavailable ({str(e)}). Local Regex Fallback: {ass}",
+                    violations=["SDK_UNAVAILABLE"],
+                    available=False,
+                )
+            except Exception:
+                pass
+            return (st, rs, ass)
     else:
         logger.debug("enkrypt_ai_disabled_or_no_key_using_local_regex")
-        return evaluate_command_safety(command)
+        st, rs, ass = evaluate_command_safety(command)
+        try:
+            from .websocket_service import broadcast_enkrypt_validation
+            broadcast_enkrypt_validation(
+                action=command[:100],
+                status=st,
+                risk_score=rs,
+                assessment=f"Enkrypt AI Unconfigured/Disabled. Local Regex Fallback: {ass}",
+                violations=["API_KEY_UNSET"],
+                available=False,
+            )
+        except Exception:
+            pass
+        return (st, rs, ass)
 
 
 def _simulate_llm_reasoning(

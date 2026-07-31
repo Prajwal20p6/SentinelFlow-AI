@@ -5,11 +5,19 @@ interface MastraState {
   mastraExecution: any | null;
   mastraSelectedId: number | null;
   mastraLoading: boolean;
+  ragEvents: any[];
+  enkryptEvents: any[];
+  activeStorageTier: string;
+  enkryptAvailable: boolean;
 
   setMastraEvents: (events: any[] | ((prev: any[]) => any[])) => void;
   setMastraExecution: (execution: any | ((prev: any) => any)) => void;
   setMastraSelectedId: (id: number | null) => void;
   setMastraLoading: (loading: boolean) => void;
+  setRagEvents: (events: any[] | ((prev: any[]) => any[])) => void;
+  setEnkryptEvents: (events: any[] | ((prev: any[]) => any[])) => void;
+  setActiveStorageTier: (tier: string) => void;
+  setEnkryptAvailable: (available: boolean) => void;
 }
 
 export const useMastraStore = create<MastraState>((set) => ({
@@ -17,6 +25,10 @@ export const useMastraStore = create<MastraState>((set) => ({
   mastraExecution: null,
   mastraSelectedId: null,
   mastraLoading: false,
+  ragEvents: [],
+  enkryptEvents: [],
+  activeStorageTier: 'InMemory fallback',
+  enkryptAvailable: false,
 
   setMastraEvents: (updater) =>
     set((state) => ({
@@ -28,4 +40,14 @@ export const useMastraStore = create<MastraState>((set) => ({
     })),
   setMastraSelectedId: (mastraSelectedId) => set({ mastraSelectedId }),
   setMastraLoading: (mastraLoading) => set({ mastraLoading }),
+  setRagEvents: (updater) =>
+    set((state) => ({
+      ragEvents: typeof updater === 'function' ? updater(state.ragEvents) : updater,
+    })),
+  setEnkryptEvents: (updater) =>
+    set((state) => ({
+      enkryptEvents: typeof updater === 'function' ? updater(state.enkryptEvents) : updater,
+    })),
+  setActiveStorageTier: (activeStorageTier) => set({ activeStorageTier }),
+  setEnkryptAvailable: (enkryptAvailable) => set({ enkryptAvailable }),
 }));

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Zap,
   RefreshCw,
@@ -12,9 +12,17 @@ import {
   ListChecks,
   Terminal,
   Clock,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
+  Layers,
+  ArrowRight,
 } from 'lucide-react';
 import { useMastraStore } from '../../store/mastraStore';
 import { api } from '../../lib/api';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import { QdrantRetrievalPanel } from '../qdrant/QdrantRetrievalPanel';
+import { EnkryptValidationPanel } from '../enkrypt/EnkryptValidationPanel';
 
 interface MastraExecutionCenterProps {
   onTriggerDemo: (type: string) => Promise<void>;
@@ -32,7 +40,64 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
     setMastraSelectedId,
     mastraLoading,
     setMastraLoading,
+    setRagEvents,
+    setEnkryptEvents,
   } = useMastraStore();
+
+  const [expandedStep, setExpandedStep] = useState<string | null>(null);
+
+  // Subscribe to real-time WebSocket events
+  useWebSocket('MastraExecution', (evtData: any) => {
+    if (evtData) {
+      setMastraEvents((prev: any[]) => [...prev.slice(-49), evtData]);
+      if (evtData.incident_id === mastraSelectedId || !mastraSelectedId) {
+        setMastraExecution((prev: any) => {
+          if (!prev) return prev;
+          const updatedPipeline = (prev.pipeline || []).map((step: any) => {
+            if (step.step_key === evtData.step_name || step.step_number === evtData.step_number) {
+              return {
+                ...step,
+                status: evtData.step_status,
+                duration_seconds: evtData.duration_seconds || step.duration_seconds,
+                input_excerpt: evtData.input_excerpt || step.input_excerpt,
+                output_excerpt: evtData.output_excerpt || step.output_excerpt,
+                is_simulated: evtData.is_simulated || step.is_simulated,
+                simulation_reason: evtData.simulation_reason || step.simulation_reason,
+                token_usage: evtData.token_usage || step.token_usage,
+                confidence: evtData.confidence || step.confidence,
+              };
+            }
+            return step;
+          });
+          return {
+            ...prev,
+            pipeline: updatedPipeline,
+            agent: evtData.agent_name
+              ? { name: evtData.agent_name, sub_type: evtData.agent_sub_type, domain: evtData.agent_domain }
+              : prev.agent,
+            ai_provider: evtData.ai_provider || prev.ai_provider,
+            confidence: evtData.confidence || prev.confidence,
+            safety: {
+              status: evtData.safety_status || prev.safety?.status,
+              risk_score: evtData.risk_score || prev.safety?.risk_score,
+            },
+          };
+        });
+      }
+    }
+  });
+
+  useWebSocket('RAGRetrieval', (evtData: any) => {
+    if (evtData) {
+      setRagEvents((prev: any[]) => [...prev.slice(-19), evtData]);
+    }
+  });
+
+  useWebSocket('EnkryptValidation', (evtData: any) => {
+    if (evtData) {
+      setEnkryptEvents((prev: any[]) => [...prev.slice(-29), evtData]);
+    }
+  });
 
   const handleRefresh = async () => {
     setMastraLoading(true);
@@ -40,7 +105,6 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
       const res = await api.getActiveExecution();
       setMastraExecution(res);
       setMastraSelectedId(res.incident?.id || null);
-      setMastraEvents([]);
     } catch (e) {
       console.error(e);
     }
@@ -56,21 +120,18 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
     }
   })();
 
-  const mastraRunbooks = (() => {
-    if (!mastraExecution?.incident?.recommended_runbooks_json) return null;
-    try {
-      return JSON.parse(mastraExecution.incident.recommended_runbooks_json);
-    } catch {
-      return null;
-    }
-  })();
+  // Compute overall workflow duration
+  const totalWorkflowSeconds = (mastraExecution?.pipeline || []).reduce(
+    (acc: number, s: any) => acc + (s.duration_seconds || 0),
+    0
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white flex items-center gap-3">
           <Zap className="w-5 h-5 text-[#00ff88]" />
-          Mastra Live Execution Monitor
+          Mastra Live AI Orchestration Execution Center
         </h2>
         <div className="flex gap-2">
           <button
@@ -78,7 +139,7 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
             className="px-3 py-1.5 bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/30 rounded-lg text-xs font-mono hover:bg-[#00ff88]/20 transition-all flex items-center gap-1.5"
           >
             <RefreshCw className={`w-3 h-3 ${mastraLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            Refresh Execution
           </button>
         </div>
       </div>
@@ -86,7 +147,7 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
       {/* Quick Demo Triggers */}
       <div className="card p-4">
         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-          Quick Incident Triggers
+          Trigger Incident Scenario to Observe Live AI Orchestration
         </h4>
         <div className="flex flex-wrap gap-2">
           {[
@@ -124,7 +185,7 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
                 <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 animate-pulse" />
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-amber-200">
-                    ⚠ Simulated Fallback Active — Live Agent Call Failed
+                    ⚠ Simulated Fallback Active — Provider/Quota Limitation
                   </h4>
                   <p className="text-xs text-amber-300/80 font-mono mt-0.5">
                     Reason:{' '}
@@ -132,7 +193,7 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
                       mastraExecution?.incident?.simulation_reason ||
                       mastraExecution?.rca?.simulation_reason ||
                       mastraExecution?.result?.simulation_reason ||
-                      'Live LLM agent call threw an exception or was forced.'}
+                      'Live LLM provider threw an exception or returned simulated fallback data.'}
                   </p>
                 </div>
               </div>
@@ -188,15 +249,14 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
             <div className="card p-4">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Workflow</p>
               <p className="text-sm font-bold text-[#00d4ff] mt-1">
-                {mastraExecution.workflow?.name || 'N/A'}
+                {mastraExecution.workflow?.name || 'IncidentResponseWorkflow'}
               </p>
               <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                Step {mastraExecution.workflow?.current_step || 0} of{' '}
-                {mastraExecution.workflow?.total_steps || 8}
+                Total Duration: {totalWorkflowSeconds.toFixed(1)}s
               </p>
             </div>
             <div className="card p-4">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Agent</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active Agent</p>
               <p className="text-sm font-bold text-[#00ff88] mt-1">
                 {mastraExecution.agent?.name || 'Pending'}
               </p>
@@ -264,194 +324,230 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
             </div>
           </div>
 
-          {/* Real-time Mastra Agent & Data Insights Grid */}
+          {/* AI Orchestration Components Grid: Qdrant & Enkrypt AI */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div className="space-y-6">
-              {/* Qdrant Context Retrieval */}
-              <div className="card p-5 space-y-4">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Database className="w-4 h-4 text-[#00d4ff]" /> Qdrant Context Retrieval
-                </h4>
-                {mastraRunbooks && mastraRunbooks.length > 0 ? (
-                  <div className="space-y-3">
-                    <p className="text-xs text-slate-400">
-                      Fetched <span className="text-[#00ff88] font-bold">{mastraRunbooks.length}</span>{' '}
-                      highly similar runbook entries from Qdrant vector index matching telemetry signals.
-                    </p>
-                    <div className="space-y-2">
-                      {mastraRunbooks.map((rb: any, idx: number) => (
-                        <div key={idx} className="p-3 bg-white/5 border border-white/5 rounded-xl space-y-1">
-                          <div className="flex justify-between items-center text-[10px]">
-                            <span className="text-slate-200 font-bold">{rb.title || rb.name}</span>
-                            <span className="font-mono text-[#00d4ff] bg-[#00d4ff]/10 px-1.5 py-0.5 rounded">
-                              Match Score: {rb.score ? (rb.score * 100).toFixed(0) + '%' : '92%'}
+            <QdrantRetrievalPanel />
+            <EnkryptValidationPanel />
+          </div>
+
+          {/* Remediation Options & Agent Purpose Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Agent Purpose Card */}
+            <div className="card p-5 space-y-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-[#00ff88]" /> Active Agent Purpose
+              </h4>
+              {mastraExecution.agent?.name ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs border-b border-white/5 pb-2">
+                    <span className="text-slate-300 font-bold">{mastraExecution.agent.name}</span>
+                    <span className="text-[#00ff88] font-mono text-[10px]">
+                      {mastraExecution.agent.sub_type} domain
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed font-mono">
+                    {mastraExecution.agent.name === 'RootCauseAnalysisAgent'
+                      ? 'Synthesize metrics, logs, deployments, past incidents, and dependencies to diagnose root cause.'
+                      : mastraExecution.agent.name === 'ThreatIntelAgent'
+                      ? 'Parse active incident logs, extract IOCs, query VirusTotal/AbuseIPDB.'
+                      : mastraExecution.agent.name === 'RemediationAgent'
+                      ? 'Intelligent agent ranking recovery plans based on success, risk, and user impact.'
+                      : 'Collaborates to resolve the failure scenario via multi-agent reasoning loops.'}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 font-mono">Waiting for active agent assignment...</p>
+              )}
+            </div>
+
+            {/* Remediation Options */}
+            <div className="card p-5 space-y-4">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <ListChecks className="w-4 h-4 text-[#00ff88]" /> Remediation Decision & Options
+              </h4>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-mono uppercase block mb-1">
+                    Recommended Command
+                  </span>
+                  <div className="p-2.5 bg-black/40 border border-white/5 rounded-lg text-xs font-mono text-[#00ff88] break-all">
+                    {mastraExecution.incident?.suggested_action || 'Formulating plan...'}
+                  </div>
+                </div>
+                {mastraOptions && mastraOptions.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] text-slate-500 font-mono uppercase block">
+                      Ranked Alternatives Evaluated:
+                    </span>
+                    <div className="space-y-2 font-mono">
+                      {mastraOptions.map((opt: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="p-2.5 bg-white/5 border border-white/5 rounded-lg text-[10px] space-y-1"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-200 font-bold">{opt.name}</span>
+                            <span
+                              className={`font-mono font-bold ${
+                                idx === 0 ? 'text-[#00ff88]' : 'text-slate-500'
+                              }`}
+                            >
+                              Score:{' '}
+                              {opt.composite_score ||
+                                opt.success_probability - opt.risk_score - opt.user_impact}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
-                            {rb.content || rb.description}
-                          </p>
+                          <p className="text-slate-400">{opt.reasoning || opt.reason}</p>
                         </div>
                       ))}
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-4 space-y-2">
-                    <Loader2 className="w-6 h-6 text-slate-600 animate-spin mx-auto" />
-                    <p className="text-xs text-slate-500 font-mono">Querying Qdrant similarity space...</p>
-                  </div>
                 )}
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="space-y-6">
-              {/* Agent Purpose Card */}
-              <div className="card p-5 space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-[#00ff88]" /> Active Agent Purpose
-                </h4>
-                {mastraExecution.agent?.name ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs border-b border-white/5 pb-2">
-                      <span className="text-slate-300 font-bold">{mastraExecution.agent.name}</span>
-                      <span className="text-[#00ff88] font-mono text-[10px]">
-                        {mastraExecution.agent.sub_type} domain
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 leading-relaxed font-mono">
-                      {mastraExecution.agent.name === 'RootCauseAnalysisAgent'
-                        ? 'Synthesize metrics, logs, deployments, past incidents, and dependencies to diagnose root cause.'
-                        : mastraExecution.agent.name === 'ThreatIntelAgent'
-                        ? 'Parse active incident logs, extract IOCs, query VirusTotal/AbuseIPDB.'
-                        : mastraExecution.agent.name === 'RemediationAgent'
-                        ? 'Intelligent agent ranking recovery plans based on success, risk, and user impact.'
-                        : 'Collaborates to resolve the failure scenario via multi-agent reasoning loops.'}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500 font-mono">Waiting for active agent assignment...</p>
-                )}
-              </div>
-
-              {/* Remediation Options */}
-              <div className="card p-5 space-y-4">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <ListChecks className="w-4 h-4 text-[#00ff88]" /> Remediation Decision & Options
-                </h4>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-mono uppercase block mb-1">
-                      Recommended Command
-                    </span>
-                    <div className="p-2.5 bg-black/40 border border-white/5 rounded-lg text-xs font-mono text-[#00ff88] break-all">
-                      {mastraExecution.incident?.suggested_action || 'Formulating plan...'}
-                    </div>
-                  </div>
-                  {mastraOptions && mastraOptions.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-[10px] text-slate-500 font-mono uppercase block">
-                        Ranked Alternatives Evaluated:
-                      </span>
-                      <div className="space-y-2 font-mono">
-                        {mastraOptions.map((opt: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="p-2.5 bg-white/5 border border-white/5 rounded-lg text-[10px] space-y-1"
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className="text-slate-200 font-bold">{opt.name}</span>
-                              <span
-                                className={`font-mono font-bold ${
-                                  idx === 0 ? 'text-[#00ff88]' : 'text-slate-500'
-                                }`}
-                              >
-                                Score:{' '}
-                                {opt.composite_score ||
-                                  opt.success_probability - opt.risk_score - opt.user_impact}
-                              </span>
-                            </div>
-                            <p className="text-slate-400">{opt.reasoning || opt.reason}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Workflow Pipeline */}
-          <div className="card p-5">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-[#00d4ff]" /> Workflow Pipeline
-            </h4>
-            <div className="space-y-2">
-              {(mastraExecution.pipeline || []).map((step: any) => {
-                const statusColor =
-                  step.status === 'completed'
-                    ? 'bg-[#00ff88]/5 border-[#00ff88]/20'
-                    : step.status === 'running'
-                    ? 'bg-[#00d4ff]/5 border-[#00d4ff]/30'
-                    : step.status === 'failed'
-                    ? 'bg-rose-500/5 border-rose-500/20'
-                    : 'bg-white/[0.02] border-white/5';
-                const dotColor =
-                  step.status === 'completed'
-                    ? 'bg-[#00ff88]/20 text-[#00ff88]'
-                    : step.status === 'running'
-                    ? 'bg-[#00d4ff]/20 text-[#00d4ff]'
-                    : step.status === 'failed'
-                    ? 'bg-rose-500/20 text-rose-400'
-                    : 'bg-slate-800 text-slate-500';
-                const dotChar =
-                  step.status === 'completed'
-                    ? 'V'
-                    : step.status === 'running'
-                    ? '>'
-                    : step.status === 'failed'
-                    ? 'X'
-                    : String(step.step_number);
-                const statusText =
-                  step.status === 'running'
-                    ? 'Running...'
-                    : step.status === 'completed'
-                    ? step.duration_seconds.toFixed(1) + 's'
-                    : step.status === 'failed'
-                    ? 'Failed'
-                    : 'Pending';
-                const statusTextColor =
-                  step.status === 'completed'
-                    ? 'text-[#00ff88]'
-                    : step.status === 'running'
-                    ? 'text-[#00d4ff]'
-                    : step.status === 'failed'
-                    ? 'text-rose-400'
-                    : 'text-slate-600';
-                const pulseClass = step.status === 'running' ? ' animate-pulse' : '';
+          {/* Part 1 — Mastra Workflow Visualization Pipeline */}
+          <div className="card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                <Activity className="w-4 h-4 text-[#00d4ff]" /> Mastra Workflow Step Pipeline & Live Input/Output Traces
+              </h4>
+              <span className="text-[10px] font-mono text-slate-500">
+                Click any step to inspect real-time agent input, output, and provider metadata
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {(mastraExecution.pipeline || []).map((step: any, idx: number) => {
+                const isExpanded = expandedStep === step.step_key;
+                const isCompleted = step.status === 'completed';
+                const isRunning = step.status === 'running' || step.status === 'in_progress';
+                const isFailed = step.status === 'failed';
+
+                const statusColor = isCompleted
+                  ? 'bg-[#00ff88]/5 border-[#00ff88]/20'
+                  : isRunning
+                  ? 'bg-[#00d4ff]/10 border-[#00d4ff]/40 shadow-[0_0_15px_rgba(0,212,255,0.15)]'
+                  : isFailed
+                  ? 'bg-rose-500/10 border-rose-500/30'
+                  : 'bg-white/[0.02] border-white/5';
+
+                const badgeBg = isCompleted
+                  ? 'bg-[#00ff88]/20 text-[#00ff88]'
+                  : isRunning
+                  ? 'bg-[#00d4ff]/20 text-[#00d4ff] animate-pulse'
+                  : isFailed
+                  ? 'bg-rose-500/20 text-rose-400'
+                  : 'bg-slate-800 text-slate-500';
+
                 return (
                   <div
                     key={step.step_key}
-                    className={'flex items-center gap-3 p-3 rounded-xl border transition-all ' + statusColor + pulseClass}
+                    className={`rounded-xl border transition-all ${statusColor}`}
                   >
-                    <div className={'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ' + dotColor}>
-                      {dotChar}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-200">{step.label}</span>
-                        <span className="text-[9px] font-mono text-slate-500 uppercase">{step.step_key}</span>
+                    {/* Main Step Bar */}
+                    <div
+                      onClick={() => setExpandedStep(isExpanded ? null : step.step_key)}
+                      className="p-3 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-all rounded-xl"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${badgeBg}`}>
+                          {isCompleted ? '✓' : isRunning ? '⚡' : isFailed ? '✕' : step.step_number}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-200">{step.label}</span>
+                            <span className="text-[9px] font-mono text-slate-500 uppercase">
+                              [{step.step_key}]
+                            </span>
+                            {step.is_simulated && (
+                              <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono rounded">
+                                SIMULATED
+                              </span>
+                            )}
+                          </div>
+                          {step.error_message && (
+                            <p className="text-[10px] text-rose-400 font-mono mt-0.5 truncate">
+                              {step.error_message}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      {step.error_message && (
-                        <p className="text-[10px] text-rose-400 font-mono mt-0.5 truncate">{step.error_message}</p>
-                      )}
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        {step.confidence !== undefined && step.confidence > 0 && (
+                          <span className="text-[10px] font-mono text-[#00ff88] bg-[#00ff88]/10 px-2 py-0.5 rounded">
+                            {Math.round(step.confidence * 100)}% conf
+                          </span>
+                        )}
+
+                        <span
+                          className={`text-[10px] font-mono font-bold ${
+                            isCompleted
+                              ? 'text-[#00ff88]'
+                              : isRunning
+                              ? 'text-[#00d4ff]'
+                              : isFailed
+                              ? 'text-rose-400'
+                              : 'text-slate-600'
+                          }`}
+                        >
+                          {isRunning
+                            ? 'RUNNING...'
+                            : isCompleted
+                            ? `${(step.duration_seconds || 0).toFixed(1)}s`
+                            : isFailed
+                            ? 'FAILED'
+                            : 'QUEUED'}
+                        </span>
+
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-shrink-0 text-right">
-                      <span className={'text-[10px] font-mono font-bold ' + statusTextColor}>
-                        {statusText}
-                      </span>
-                    </div>
+
+                    {/* Expandable Step Input / Output Detail Drawer */}
+                    {isExpanded && (
+                      <div className="p-4 border-t border-white/5 bg-black/50 space-y-3 text-xs font-mono rounded-b-xl">
+                        {/* Token Usage Section */}
+                        <div className="p-2.5 bg-black/60 border border-white/5 rounded-lg flex items-center justify-between text-[10px]">
+                          <span className="text-slate-400 uppercase font-bold">LLM Token Usage:</span>
+                          {step.token_usage ? (
+                            <span className="text-[#00ff88] font-bold">
+                              Prompt: {step.token_usage.prompt_tokens} | Completion: {step.token_usage.completion_tokens} | Total: {step.token_usage.total_tokens}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500 italic">
+                              Not available for this provider (simulation mode / usage metadata omitted)
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Input Excerpt */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
+                            <ArrowRight className="w-3 h-3 text-[#00d4ff]" /> Agent Input Payload:
+                          </span>
+                          <pre className="p-3 bg-black/80 rounded-lg text-[10px] text-slate-300 whitespace-pre-wrap max-h-36 overflow-y-auto leading-relaxed border border-white/5">
+                            {step.input_excerpt || `{\n  "incident_id": ${mastraExecution.incident?.id},\n  "step": "${step.step_key}",\n  "scenario": "${mastraExecution.incident?.metric_type}"\n}`}
+                          </pre>
+                        </div>
+
+                        {/* Output Excerpt */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1">
+                            <ArrowRight className="w-3 h-3 text-[#00ff88]" /> Agent Response Output:
+                          </span>
+                          <pre className="p-3 bg-black/80 rounded-lg text-[10px] text-slate-300 whitespace-pre-wrap max-h-36 overflow-y-auto leading-relaxed border border-white/5">
+                            {step.output_excerpt || `{\n  "status": "${step.status}",\n  "duration_seconds": ${step.duration_seconds || 0},\n  "action": "${mastraExecution.incident?.suggested_action || 'Analyzed'}"\n}`}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -472,7 +568,7 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
                     className={`${
                       evt.step_status === 'completed'
                         ? 'text-[#00ff88]'
-                        : evt.step_status === 'in_progress'
+                        : evt.step_status === 'in_progress' || evt.step_status === 'running'
                         ? 'text-[#00d4ff]'
                         : evt.step_status === 'failed'
                         ? 'text-rose-400'
@@ -527,10 +623,7 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
           <Zap className="w-16 h-16 text-slate-700 mb-4" />
           <h4 className="text-sm font-bold text-slate-400">No Active Execution</h4>
           <p className="text-xs text-slate-600 mt-2">
-            Click "Refresh" to check for active incidents, or trigger a demo incident above
-          </p>
-          <p className="text-[10px] text-slate-700 mt-4 font-mono">
-            All data updates live via WebSocket — no polling required
+            Click "Refresh Execution" to check for active incidents, or trigger a demo scenario above
           </p>
         </div>
       )}

@@ -104,6 +104,32 @@ class PlaybookProgressEvent(BaseModel):
     timestamp: str = Field(default_factory=_get_utc_timestamp)
 
 
+# ── RAG Vector Search Event ──────────────────────────────────────────────────
+
+class RAGRetrievalEvent(BaseModel):
+    incident_id: Optional[int] = None
+    query: str
+    collection: str = "runbooks"
+    storage_tier: str = "Qdrant"  # Qdrant, ChromaDB fallback, FAISS fallback, InMemory fallback
+    total_documents: int = 0
+    results: list = Field(default_factory=list)  # list of {id, score, title, snippet, category, storage_tier}
+    timestamp: str = Field(default_factory=_get_utc_timestamp)
+
+
+# ── Enkrypt AI Validation Event ──────────────────────────────────────────────
+
+class EnkryptValidationEvent(BaseModel):
+    incident_id: Optional[int] = None
+    action: str
+    check_type: str = "command"  # command, prompt, output
+    available: bool = True
+    status: str = "ALLOWED"  # ALLOWED, BLOCKED, UNAVAILABLE
+    risk_score: float = 0.0
+    assessment: str = ""
+    violations: list = Field(default_factory=list)
+    timestamp: str = Field(default_factory=_get_utc_timestamp)
+
+
 # ── Mastra Live Execution Monitor Event ─────────────────────────────────────
 
 class MastraExecutionEvent(BaseModel):
@@ -115,7 +141,7 @@ class MastraExecutionEvent(BaseModel):
     step_name: str
     step_number: int
     total_steps: int = 8
-    step_status: str                  # in_progress, completed, failed
+    step_status: str                  # queued, in_progress, running, completed, failed
     agent_name: str = ""
     agent_sub_type: str = ""
     agent_domain: str = ""
@@ -128,4 +154,11 @@ class MastraExecutionEvent(BaseModel):
     severity: str = ""
     duration_seconds: float = 0.0
     message: str = ""
+    input_excerpt: Optional[str] = None
+    output_excerpt: Optional[str] = None
+    is_simulated: bool = False
+    simulation_reason: Optional[str] = None
+    token_usage: Optional[Dict[str, Any]] = None  # None if unavailable/simulated
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
     timestamp: str = Field(default_factory=_get_utc_timestamp)

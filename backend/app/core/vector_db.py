@@ -561,7 +561,7 @@ def search_similar_runbooks(
                 score_threshold=score_threshold,
             )
             if results and results.points:
-                return [
+                formatted_hits = [
                     {
                         "id": hit.id,
                         "score": hit.score,
@@ -570,9 +570,16 @@ def search_similar_runbooks(
                         "tags": hit.payload.get("tags", []),
                         "severity": hit.payload.get("severity", ""),
                         "category": hit.payload.get("category", ""),
+                        "storage_tier": "Qdrant",
                     }
                     for hit in results.points
                 ]
+                try:
+                    from ..services.websocket_service import broadcast_rag_retrieval
+                    broadcast_rag_retrieval(query, formatted_hits, storage_tier="Qdrant", total_documents=len(formatted_hits))
+                except Exception:
+                    pass
+                return formatted_hits
         except Exception as e:
             logger.warning("vdb_qdrant_search_failed", error=str(e))
 
@@ -582,6 +589,13 @@ def search_similar_runbooks(
                 hits = chroma_store.search(query_vector, limit, category_filter)
                 if hits:
                     logger.debug("vdb_chroma_fallback_succeeded")
+                    for h in hits:
+                        h["storage_tier"] = "ChromaDB fallback"
+                    try:
+                        from ..services.websocket_service import broadcast_rag_retrieval
+                        broadcast_rag_retrieval(query, hits, storage_tier="ChromaDB fallback", total_documents=len(hits))
+                    except Exception:
+                        pass
                     return hits
             except Exception as e:
                 logger.warning("vdb_chroma_search_failed", error=str(e))
@@ -592,6 +606,13 @@ def search_similar_runbooks(
                 hits = faiss_store.search(query_vector, limit, category_filter)
                 if hits:
                     logger.debug("vdb_faiss_fallback_succeeded")
+                    for h in hits:
+                        h["storage_tier"] = "FAISS fallback"
+                    try:
+                        from ..services.websocket_service import broadcast_rag_retrieval
+                        broadcast_rag_retrieval(query, hits, storage_tier="FAISS fallback", total_documents=len(hits))
+                    except Exception:
+                        pass
                     return hits
             except Exception as e:
                 logger.warning("vdb_faiss_search_failed", error=str(e))
@@ -600,6 +621,14 @@ def search_similar_runbooks(
         try:
             hits = in_memory_store.search(query_vector, limit, category_filter)
             logger.debug("vdb_inmemory_fallback_succeeded")
+            doc_count = len(in_memory_store.points)
+            for h in hits:
+                h["storage_tier"] = "InMemory fallback"
+            try:
+                from ..services.websocket_service import broadcast_rag_retrieval
+                broadcast_rag_retrieval(query, hits, storage_tier="InMemory fallback", total_documents=doc_count)
+            except Exception:
+                pass
             return hits
         except Exception as e:
             logger.error("vdb_all_fallbacks_failed", error=str(e))

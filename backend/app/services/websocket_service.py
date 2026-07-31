@@ -18,7 +18,109 @@ from ..websocket.events import (
     LiveMetricsUpdateEvent,
     PlaybookProgressEvent,
     MastraExecutionEvent,
+    RAGRetrievalEvent,
+    EnkryptValidationEvent,
 )
+
+
+def broadcast_rag_retrieval(
+    query: str,
+    results: list,
+    storage_tier: str = "Qdrant",
+    total_documents: int = 0,
+    incident_id: Optional[int] = None,
+    collection: str = "runbooks",
+) -> None:
+    """Publish a RAGRetrievalEvent broadcast for live transparency panel."""
+    evt = RAGRetrievalEvent(
+        incident_id=incident_id,
+        query=query,
+        collection=collection,
+        storage_tier=storage_tier,
+        total_documents=total_documents,
+        results=results,
+    )
+    pubsub_manager.publish("RAGRetrieval", evt.model_dump())
+
+
+def broadcast_enkrypt_validation(
+    action: str,
+    status: str,
+    risk_score: float,
+    assessment: str,
+    violations: Optional[list] = None,
+    available: bool = True,
+    check_type: str = "command",
+    incident_id: Optional[int] = None,
+) -> None:
+    """Publish an EnkryptValidationEvent broadcast for live safety panel."""
+    evt = EnkryptValidationEvent(
+        incident_id=incident_id,
+        action=action,
+        check_type=check_type,
+        available=available,
+        status=status,
+        risk_score=risk_score,
+        assessment=assessment,
+        violations=violations or [],
+    )
+    pubsub_manager.publish("EnkryptValidation", evt.model_dump())
+
+
+def broadcast_mastra_execution(
+    incident_id: int,
+    step_name: str,
+    step_number: int,
+    total_steps: int,
+    step_status: str,
+    agent_name: str = "",
+    agent_sub_type: str = "",
+    agent_domain: str = "",
+    ai_provider: str = "simulation",
+    safety_status: str = "",
+    risk_score: float = 0.0,
+    confidence: float = 0.0,
+    action_taken: str = "",
+    anomaly_type: str = "",
+    severity: str = "",
+    duration_seconds: float = 0.0,
+    message: str = "",
+    input_excerpt: Optional[str] = None,
+    output_excerpt: Optional[str] = None,
+    is_simulated: bool = False,
+    simulation_reason: Optional[str] = None,
+    token_usage: Optional[Dict[str, Any]] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+) -> None:
+    """Publish a MastraExecutionEvent for the Live Execution Monitor."""
+    evt = MastraExecutionEvent(
+        incident_id=incident_id,
+        step_name=step_name,
+        step_number=step_number,
+        total_steps=total_steps,
+        step_status=step_status,
+        agent_name=agent_name,
+        agent_sub_type=agent_sub_type,
+        agent_domain=agent_domain,
+        ai_provider=ai_provider,
+        safety_status=safety_status,
+        risk_score=risk_score,
+        confidence=confidence,
+        action_taken=action_taken,
+        anomaly_type=anomaly_type,
+        severity=severity,
+        duration_seconds=duration_seconds,
+        message=message,
+        input_excerpt=input_excerpt,
+        output_excerpt=output_excerpt,
+        is_simulated=is_simulated,
+        simulation_reason=simulation_reason,
+        token_usage=token_usage,
+        start_time=start_time,
+        end_time=end_time,
+    )
+    pubsub_manager.publish("MastraExecution", evt.model_dump())
 
 
 def broadcast_incident_update(
