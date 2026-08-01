@@ -111,6 +111,7 @@ def generate_anomaly_metrics(anomaly_type: str) -> dict:
 def _simulator_loop():
     """Background thread that periodically generates telemetry and anomalies."""
     anomaly_cycle = 0
+    initial_triggered = False
 
     while True:
         try:
@@ -124,12 +125,15 @@ def _simulator_loop():
             })
 
             anomaly_cycle += 1
-            # Initial anomaly at cycle 2 (~10s), then every 9 cycles (~45s)
-            is_trigger_cycle = (anomaly_cycle == 2) or (anomaly_cycle >= 9)
+            is_initial = (not initial_triggered and anomaly_cycle == 2)
+            is_periodic = (anomaly_cycle >= 9)
 
-            if is_trigger_cycle:
-                if anomaly_cycle >= 9:
-                    anomaly_cycle = 0  # Reset counter, next trigger in 9 cycles (45s)
+            if is_initial or is_periodic:
+                if is_initial:
+                    initial_triggered = True
+                    anomaly_cycle = 0  # Reset counter for clean 9-cycle (45s) periodic interval
+                elif is_periodic:
+                    anomaly_cycle = 0  # Reset counter for next 9-cycle (45s) periodic interval
 
                 # Backlog Safety Cap: Check active incident count before injecting new anomaly
                 db = SessionLocal()
