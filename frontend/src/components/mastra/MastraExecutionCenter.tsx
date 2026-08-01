@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Layers,
   ArrowRight,
+  CheckCircle2,
 } from 'lucide-react';
 import { useMastraStore } from '../../store/mastraStore';
 import { api } from '../../lib/api';
@@ -45,11 +46,15 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
   } = useMastraStore();
 
   const [expandedStep, setExpandedStep] = useState<string | null>(null);
+  const [approving, setApproving] = useState<boolean>(false);
 
   // Subscribe to real-time WebSocket events
   useWebSocket('MastraExecution', (evtData: any) => {
     if (evtData) {
       setMastraEvents((prev: any[]) => [...prev.slice(-49), evtData]);
+      if (!mastraSelectedId && evtData.incident_id) {
+        setMastraSelectedId(evtData.incident_id);
+      }
       if (evtData.incident_id === mastraSelectedId || !mastraSelectedId) {
         setMastraExecution((prev: any) => {
           if (!prev) return prev;
@@ -401,6 +406,40 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+                {mastraExecution.incident?.status === 'PENDING_APPROVAL' && (
+                  <div className="pt-2 border-t border-white/5">
+                    <button
+                      onClick={async () => {
+                        if (mastraExecution.incident?.id) {
+                          setApproving(true);
+                          try {
+                            await api.approveIncident(mastraExecution.incident.id);
+                            const updated = await api.getMastraExecution(mastraExecution.incident.id);
+                            setMastraExecution(updated);
+                          } catch (err) {
+                            console.error('Approval failed', err);
+                          } finally {
+                            setApproving(false);
+                          }
+                        }
+                      }}
+                      disabled={approving}
+                      className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-slate-900 font-bold rounded-xl text-xs font-mono uppercase transition-all shadow-lg flex items-center justify-center gap-2"
+                    >
+                      {approving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-slate-900" />
+                          Executing Remediation Approval...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-slate-900" />
+                          Approve & Continue Automation (Demo Override)
+                        </>
+                      )}
+                    </button>
                   </div>
                 )}
               </div>

@@ -258,6 +258,10 @@ class APIClient {
     return this.request(`/incidents/${id}/simulation`);
   }
 
+  async getMastraExecution(id: number): Promise<any> {
+    return this.request(`/mastra/execution/${id}`);
+  }
+
   async getRemediationOptions(id: number): Promise<any[]> {
     return this.request(`/incidents/${id}/remediation-options`);
   }

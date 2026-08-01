@@ -123,39 +123,55 @@ def _simulator_loop():
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
 
-            # Every ~30 cycles, inject an anomaly
             anomaly_cycle += 1
-            if anomaly_cycle >= 30:
-                anomaly_cycle = 0
-                anomaly_type = random.choice([
-                    "CPU_SPIKE", "MEMORY_EXHAUSTION", "UNAUTHORIZED_ACCESS",
-                    "HIGH_LATENCY", "ERROR_RATE_SPIKE",
-                ])
-                anomaly_metrics = generate_anomaly_metrics(anomaly_type)
+            # Initial anomaly at cycle 2 (~10s), then every 9 cycles (~45s)
+            is_trigger_cycle = (anomaly_cycle == 2) or (anomaly_cycle >= 9)
 
-                stream_bus.publish("telemetry:anomaly", {
-                    "type": anomaly_type,
-                    **{k: str(v) for k, v in anomaly_metrics.items()},
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                })
+            if is_trigger_cycle:
+                if anomaly_cycle >= 9:
+                    anomaly_cycle = 3  # Reset counter, next trigger in 6 cycles (30s)
 
-                logger.info("simulator_anomaly_injected", anomaly_type=anomaly_type)
-
-                # Trigger workflow in a separate session
+                # Backlog Safety Cap: Check active incident count before injecting new anomaly
+                db = SessionLocal()
                 try:
-                    db = SessionLocal()
-                    from .workflow_service import run_incident_workflow
-                    run_incident_workflow(
-                        db=db,
-                        anomaly_type=anomaly_type,
-                        description=f"Simulated {anomaly_type} event: {anomaly_metrics}",
-                        severity="CRITICAL" if anomaly_type in ("CPU_SPIKE", "UNAUTHORIZED_ACCESS") else "WARNING",
-                        node_name=anomaly_metrics.get("node_name", "node-01"),
-                        pod_name=anomaly_metrics.get("pod_name"),
-                    )
-                    db.close()
-                except Exception as e:
-                    logger.warning("simulator_workflow_error", error=str(e))
+                    from ..models.models import Incident
+                    active_count = db.query(Incident).filter(
+                        Incident.status.in_(["DETECTED", "ANALYZING", "PENDING_APPROVAL", "EXECUTING"])
+                    ).count()
+                except Exception:
+                    active_count = 0
+
+                if active_count < 5:
+                    anomaly_type = random.choice([
+                        "CPU_SPIKE", "MEMORY_EXHAUSTION", "UNAUTHORIZED_ACCESS",
+                        "HIGH_LATENCY", "ERROR_RATE_SPIKE",
+                    ])
+                    anomaly_metrics = generate_anomaly_metrics(anomaly_type)
+
+                    stream_bus.publish("telemetry:anomaly", {
+                        "type": anomaly_type,
+                        **{k: str(v) for k, v in anomaly_metrics.items()},
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+
+                    logger.info("simulator_anomaly_injected", anomaly_type=anomaly_type)
+
+                    try:
+                        from .workflow_service import run_incident_workflow
+                        run_incident_workflow(
+                            db=db,
+                            anomaly_type=anomaly_type,
+                            description=f"Simulated {anomaly_type} event: {anomaly_metrics}",
+                            severity="CRITICAL" if anomaly_type in ("CPU_SPIKE", "UNAUTHORIZED_ACCESS") else "WARNING",
+                            node_name=anomaly_metrics.get("node_name", "node-01"),
+                            pod_name=anomaly_metrics.get("pod_name"),
+                        )
+                    except Exception as e:
+                        logger.warning("simulator_workflow_error", error=str(e))
+                else:
+                    logger.info("simulator_anomaly_skipped_backlog_cap", active_incidents=active_count)
+
+                db.close()
 
         except Exception as e:
             logger.error("simulator_error", error=str(e))

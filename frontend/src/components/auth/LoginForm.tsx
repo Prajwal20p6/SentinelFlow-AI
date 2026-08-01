@@ -279,6 +279,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         {/* VIEW: TOKEN RESET / VERIFICATION PORTAL */}
         {authView === 'reset' && (
           <div className="space-y-5">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 leading-relaxed font-mono">
+              ⚡ <strong>Demo Mode Notice:</strong> Transactional email delivery is unconfigured in this demo environment. No real email is sent. Your verification/reset token is generated and pre-filled below for testing.
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                 Verification / Reset Token
@@ -289,7 +293,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
                 value={resetToken}
                 onChange={e => setResetToken(e.target.value)}
                 className="w-full px-4 py-3 bg-[#0d111a] border border-white/10 rounded-xl focus:outline-none focus:border-emerald-500 text-slate-200 transition-all text-xs font-mono"
-                placeholder="Paste verification or password reset JWT token here"
+                placeholder="Demo Mode: Pre-filled with generated verification or password reset token"
               />
             </div>
 
