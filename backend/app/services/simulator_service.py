@@ -129,7 +129,7 @@ def _simulator_loop():
 
             if is_trigger_cycle:
                 if anomaly_cycle >= 9:
-                    anomaly_cycle = 3  # Reset counter, next trigger in 6 cycles (30s)
+                    anomaly_cycle = 0  # Reset counter, next trigger in 9 cycles (45s)
 
                 # Backlog Safety Cap: Check active incident count before injecting new anomaly
                 db = SessionLocal()
