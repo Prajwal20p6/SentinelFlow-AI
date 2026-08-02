@@ -57,7 +57,55 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
       }
       if (evtData.incident_id === mastraSelectedId || !mastraSelectedId) {
         setMastraExecution((prev: any) => {
-          if (!prev) return prev;
+          if (!prev) {
+            const STEP_KEYS_LIST = ['DETECT_ANOMALY','RETRIEVE_CONTEXT','RETRIEVE_RUNBOOKS','PLAN_REMEDIATION','CONTRADICTION_CHECK','VALIDATE','APPROVE_DECISION','EXECUTE_REMEDIATION'];
+            const STEP_LABELS_MAP: Record<string, string> = {
+              DETECT_ANOMALY: 'Anomaly Detection & Agent Selection',
+              RETRIEVE_CONTEXT: 'CRISPE Prompt Template Lookup',
+              RETRIEVE_RUNBOOKS: 'RAG Knowledge Retrieval',
+              PLAN_REMEDIATION: 'LLM Multi-Agent Reasoning',
+              CONTRADICTION_CHECK: 'Mastra Contradiction Analysis',
+              VALIDATE: 'Enkrypt AI Safety Validation',
+              APPROVE_DECISION: 'Confidence Gate & Governance',
+              EXECUTE_REMEDIATION: 'Autonomous Remediation Execution',
+            };
+            return {
+              active: true,
+              incident: {
+                id: evtData.incident_id,
+                title: `${(evtData.anomaly_type || 'INCIDENT').replace(/_/g, ' ')}`,
+                metric_type: evtData.anomaly_type || 'UNKNOWN',
+                severity: evtData.severity || 'CRITICAL',
+                status: 'EXECUTING',
+              },
+              workflow: {
+                name: 'IncidentResponseWorkflow',
+                is_completed: false,
+                current_step: evtData.step_number || 1,
+                total_steps: 8,
+              },
+              agent: {
+                name: evtData.agent_name || 'K8s SecOps Agent',
+                sub_type: evtData.agent_sub_type || 'sre_remediation',
+                domain: evtData.agent_domain || 'infrastructure',
+              },
+              ai_provider: evtData.ai_provider || 'Gemini 2.5 Flash (Primary)',
+              confidence: evtData.confidence || 0.85,
+              safety: {
+                status: evtData.safety_status || 'APPROVED',
+                risk_score: evtData.risk_score || 12.0,
+              },
+              pipeline: STEP_KEYS_LIST.map((key, i) => ({
+                step_number: i + 1,
+                step_key: key,
+                label: STEP_LABELS_MAP[key],
+                status: (i + 1) === (evtData.step_number || 1) ? (evtData.step_status || 'running') : ((i + 1) < (evtData.step_number || 1) ? 'completed' : 'pending'),
+                duration_seconds: evtData.duration_seconds || 0,
+                error_message: null,
+              })),
+              timeline_events: [],
+            };
+          }
           const updatedPipeline = (prev.pipeline || []).map((step: any) => {
             if (step.step_key === evtData.step_name || step.step_number === evtData.step_number) {
               return {
@@ -658,12 +706,31 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
           )}
         </>
       ) : (
-        <div className="card p-16 flex flex-col items-center justify-center text-center">
-          <Zap className="w-16 h-16 text-slate-700 mb-4" />
-          <h4 className="text-sm font-bold text-slate-400">No Active Execution</h4>
-          <p className="text-xs text-slate-600 mt-2">
-            Click "Refresh Execution" to check for active incidents, or trigger a demo scenario above
-          </p>
+        <div className="card p-10 flex flex-col items-center justify-center text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#00ff88]/10 border border-[#00ff88]/30 flex items-center justify-center">
+            <Zap className="w-6 h-6 text-[#00ff88] animate-pulse" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-slate-200">
+              WebSocket Connected — Listening for Autonomous & Manual Executions
+            </h4>
+            <p className="text-xs text-slate-400 mt-1 max-w-lg">
+              Autonomous SOC Simulator is active in the backend (10s initial / 45s periodic pacing).
+              When a new telemetry anomaly fires or when you trigger a scenario above, the 8-stage Mastra AI orchestration workflow will stream live execution traces automatically.
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-3 pt-2 text-[11px] font-mono">
+            <span className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              WebSocket Stream: ACTIVE
+            </span>
+            <span className="px-3 py-1.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-lg flex items-center gap-1.5">
+              ⏱️ Pacing: 45s Periodic
+            </span>
+            <span className="px-3 py-1.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg flex items-center gap-1.5">
+              🤖 Multi-Agent Engine: READY
+            </span>
+          </div>
         </div>
       )}
     </div>

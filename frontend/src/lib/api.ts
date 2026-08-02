@@ -262,6 +262,14 @@ class APIClient {
     return this.request(`/mastra/execution/${id}`);
   }
 
+  async getActiveExecution(): Promise<any> {
+    return this.request('/mastra/execution/active');
+  }
+
+  async getIncidentExecution(id: number): Promise<any> {
+    return this.request(`/mastra/execution/${id}`);
+  }
+
   async getRemediationOptions(id: number): Promise<any[]> {
     return this.request(`/incidents/${id}/remediation-options`);
   }
@@ -388,16 +396,6 @@ class APIClient {
     });
     if (!res.ok) throw new Error('Failed to download postmortem PDF');
     return res.blob();
-  }
-
-
-
-  async getActiveExecution(): Promise<any> {
-    return this.request('/monitor/active');
-  }
-
-  async getIncidentExecution(incidentId: number): Promise<any> {
-    return this.request(`/monitor/${incidentId}/execution`);
   }
 }
 
