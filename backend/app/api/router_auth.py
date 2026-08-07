@@ -122,22 +122,28 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/verify-email")
-def verify_email(token: str, db: Session = Depends(get_db)):
+def verify_email(
+    token: Optional[str] = None,
+    body: Optional[Dict[str, Any]] = None,
+    db: Session = Depends(get_db),
+):
     """Verify user's email using token and activate account."""
+    tok = token or (body.get("token") if body else None)
+    if not tok:
+        raise HTTPException(status_code=400, detail="Verification token is required.")
+
     try:
-        payload = decode_token(token)
+        payload = decode_token(tok)
         if payload.get("type") != "email_verify":
             raise HTTPException(status_code=400, detail="Invalid token type.")
         email = payload.get("sub")
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid or expired verification token.")
 
-    user = db.query(User).filter(User.email == email).first()
+    clean_email = email.strip().lower() if email else ""
+    user = db.query(User).filter(func.lower(User.email) == clean_email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
-
-    if user.email_verified:
-        return {"message": "Email is already verified.", "verified": True}
 
     user.email_verified = True
     user.email_verified_at = datetime.now(timezone.utc)

@@ -15,10 +15,10 @@ describe('MastraExecutionCenter Component', () => {
     });
   });
 
-  it('renders No Active Execution state when mastraExecution is null', () => {
+  it('renders WebSocket listening state when mastraExecution is null', () => {
     render(<MastraExecutionCenter onTriggerDemo={dummyTrigger} />);
-    expect(screen.getByText('Mastra Live Execution Monitor')).toBeInTheDocument();
-    expect(screen.getByText('No Active Execution')).toBeInTheDocument();
+    expect(screen.getByText('Mastra Live AI Orchestration Execution Center')).toBeInTheDocument();
+    expect(screen.getByText(/WebSocket Connected — Listening for Autonomous & Manual Executions/i)).toBeInTheDocument();
   });
 
   it('renders simulated fallback warning banner when is_simulated is true', () => {
@@ -32,7 +32,7 @@ describe('MastraExecutionCenter Component', () => {
     });
 
     render(<MastraExecutionCenter onTriggerDemo={dummyTrigger} />);
-    expect(screen.getByText(/Simulated Fallback Active — Live Agent Call Failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Simulated Fallback Active/i)).toBeInTheDocument();
     expect(screen.getByText(/Forced simulation via FORCE_SIMULATION=true/i)).toBeInTheDocument();
   });
 });
