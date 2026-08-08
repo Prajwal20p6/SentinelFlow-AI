@@ -3,7 +3,7 @@ SentinelFlow AI — WebSocket Broadcast Service
 Helper methods for broadcasting incident, workflow, metrics, and timeline updates to clients.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 
 from ..integrations.redis_pubsub import pubsub_manager
