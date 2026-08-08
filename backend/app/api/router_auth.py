@@ -5,7 +5,7 @@ Login, registration, token refresh, session tracking, MFA, and password resets.
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import jwt
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func
