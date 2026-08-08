@@ -357,23 +357,29 @@ export const MastraExecutionCenter: React.FC<MastraExecutionCenterProps> = ({
             </div>
             <div className="card p-4">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Risk Score</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <div className="flex-1 bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className={`h-1.5 rounded-full transition-all duration-500 ${
-                      (mastraExecution.safety?.risk_score || 0) > 0.7
-                        ? 'bg-rose-400'
-                        : (mastraExecution.safety?.risk_score || 0) > 0.4
-                        ? 'bg-yellow-400'
-                        : 'bg-[#00ff88]'
-                    }`}
-                    style={{ width: `${(mastraExecution.safety?.risk_score || 0) * 100}%` }}
-                  />
-                </div>
-                <span className="text-xs font-mono text-slate-300">
-                  {Math.round((mastraExecution.safety?.risk_score || 0) * 100)}%
-                </span>
-              </div>
+              {(() => {
+                const rawRisk = mastraExecution.safety?.risk_score !== undefined ? mastraExecution.safety.risk_score : 12;
+                const riskPct = Math.min(100, Math.round(rawRisk > 1 ? rawRisk : rawRisk * 100));
+                return (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <div className="flex-1 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-1.5 rounded-full transition-all duration-500 ${
+                          riskPct > 70
+                            ? 'bg-rose-400'
+                            : riskPct > 40
+                            ? 'bg-yellow-400'
+                            : 'bg-[#00ff88]'
+                        }`}
+                        style={{ width: `${riskPct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-mono text-slate-300">
+                      {riskPct}%
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 

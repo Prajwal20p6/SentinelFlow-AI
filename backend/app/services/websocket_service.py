@@ -316,3 +316,28 @@ def broadcast_mastra_execution(
     )
     pubsub_manager.publish("MastraExecution", evt.model_dump())
 
+
+def broadcast_enkrypt_validation(
+    incident_id: int,
+    status: str,
+    action: str,
+    risk_score: float,
+    check_type: str = "command_guardrail",
+    assessment: str = "",
+    violations: Optional[List[str]] = None,
+    available: bool = False,
+) -> None:
+    """Publish an EnkryptValidation event broadcast."""
+    evt = {
+        "incident_id": incident_id,
+        "status": status,
+        "action": action,
+        "risk_score": risk_score,
+        "check_type": check_type,
+        "assessment": assessment,
+        "violations": violations or [],
+        "available": available,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    pubsub_manager.publish("EnkryptValidation", evt)
+

@@ -1001,7 +1001,7 @@ def run_incident_workflow(
             
             # Broadcast Mastra execution update for live monitor
             try:
-                from .websocket_service import broadcast_mastra_execution
+                from .websocket_service import broadcast_mastra_execution, broadcast_enkrypt_validation
                 broadcast_mastra_execution(
                     incident_id=incident.id,
                     step_name="VALIDATE",
@@ -1014,6 +1014,16 @@ def run_incident_workflow(
                     severity=incident.severity,
                     duration_seconds=time.time() - step_start,
                     message=f"Enkrypt AI safety check: {safety_status}"
+                )
+                broadcast_enkrypt_validation(
+                    incident_id=incident.id,
+                    status=safety_status,
+                    action=reasoning_result["action"],
+                    risk_score=safety_risk,
+                    check_type="command_guardrail",
+                    assessment=safety_assessment,
+                    violations=["UNAUTHORIZED_POD_DESTRUCTION"] if safety_status == "BLOCKED" else [],
+                    available=False,
                 )
             except Exception:
                 pass
