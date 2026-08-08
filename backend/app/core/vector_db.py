@@ -211,7 +211,8 @@ class ChromaFallbackStore:
             if results and results.get("ids") and len(results["ids"][0]) > 0:
                 for i in range(len(results["ids"][0])):
                     payload = results["metadatas"][0][i]
-                    dist = results["distances"][0][i] if "distances" in results else 0.0
+                    dist = results["distances"][0][i] if ("distances" in results and results["distances"]) else 0.0
+                    score = float(max(0.0, 1.0 - (dist if dist is not None else 0.0)))
                     raw_id = results["ids"][0][i]
                     try:
                         point_id = int(raw_id)

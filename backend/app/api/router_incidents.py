@@ -220,6 +220,22 @@ def create_comment(
     return CommentResponse.model_validate(comment)
 
 
+@router.get("/{incident_id}/runbooks")
+def get_incident_runbooks(
+    incident_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve relevant vector-searched runbooks for an incident."""
+    incident = get_incident(db, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    
+    from ..core.vector_db import search_similar_runbooks
+    results = search_similar_runbooks(incident.description or incident.title, limit=3)
+    return results
+
+
 @router.get("/{incident_id}/postmortem")
 def get_postmortem(
     incident_id: int,
