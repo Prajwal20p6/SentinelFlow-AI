@@ -117,18 +117,33 @@ def test_mfa_setup_enable_and_verify_flow(client):
     assert enable_resp.status_code == 200
     assert enable_resp.json()["mfa_enabled"] is True
 
-    # 5. Verify that login now triggers an MFA challenge
+    # 5. Verify that login now triggers an MFA challenge when no MFA code is supplied
     login_challenge_resp = client.post(
         "/api/v1/auth/login",
         json={"email": "mfa_test@sentinelflow.ai", "password": "password123"}
     )
-    # The endpoint returns a prompt/challenge response without token if MFA is enabled but header is missing
-    # In router_auth.py:
-    # return { "message": "MFA verification required...", "mfa_required": True } OR similar model
     challenge_data = login_challenge_resp.json()
     assert challenge_data.get("access_token") is None
+    assert challenge_data.get("mfa_required") is True
 
-    # 6. Login with valid MFA token header
+    # 5b. Verify invalid TOTP code is rejected with HTTP 401
+    invalid_login_resp = client.post(
+        "/api/v1/auth/login",
+        json={"email": "mfa_test@sentinelflow.ai", "password": "password123", "mfa_code": "000000"}
+    )
+    assert invalid_login_resp.status_code == 401
+    assert "Invalid MFA token" in invalid_login_resp.json()["detail"]
+
+    # 6a. Login with valid MFA code passed in JSON body
+    valid_code_body = totp.now()
+    login_body_success = client.post(
+        "/api/v1/auth/login",
+        json={"email": "mfa_test@sentinelflow.ai", "password": "password123", "mfa_code": valid_code_body}
+    )
+    assert login_body_success.status_code == 200
+    assert "access_token" in login_body_success.json()
+
+    # 6b. Login with valid MFA token header
     valid_code_new = totp.now()
     login_success_resp = client.post(
         "/api/v1/auth/login",
@@ -142,6 +157,14 @@ def test_mfa_setup_enable_and_verify_flow(client):
     disable_resp = client.post("/api/v1/auth/mfa/disable", headers=headers)
     assert disable_resp.status_code == 200
     assert disable_resp.json()["mfa_enabled"] is False
+
+    # 8. Normal login after MFA disabled succeeds without challenge
+    login_post_disable = client.post(
+        "/api/v1/auth/login",
+        json={"email": "mfa_test@sentinelflow.ai", "password": "password123"}
+    )
+    assert login_post_disable.status_code == 200
+    assert "access_token" in login_post_disable.json()
 
 
 # ── 2. RBAC Authorization & Role Block Tests ─────────────────────

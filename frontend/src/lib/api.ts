@@ -127,7 +127,7 @@ class APIClient {
     try {
       const data = await this.request<any>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, mfa_code: mfaToken || undefined }),
       }, mfaToken);
       
       if (data.detail === 'MFA_REQUIRED' || data.mfa_required) {

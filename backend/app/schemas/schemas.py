@@ -15,6 +15,7 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 class LoginRequest(BaseModel):
     email: str = Field(..., description="User email address")
     password: str = Field(..., min_length=6, description="User password")
+    mfa_code: Optional[str] = Field(None, description="6-digit TOTP verification code if MFA is enabled")
 
 
 class TokenResponse(BaseModel):

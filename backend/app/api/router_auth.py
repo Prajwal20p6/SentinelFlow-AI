@@ -52,11 +52,12 @@ def login(
             detail="User account is inactive. Please verify your email first.",
         )
 
-    # MFA enforcement
+    # MFA enforcement — strictly enforced based on the authenticated user's DB record
     if user.mfa_enabled:
-        if not x_mfa_token:
-            return MFAChallengeResponse()
-        if not verify_mfa_code(user, x_mfa_token):
+        mfa_code = body.mfa_code or x_mfa_token
+        if not mfa_code:
+            return MFAChallengeResponse(detail="MFA_REQUIRED", mfa_required=True)
+        if not verify_mfa_code(user, mfa_code):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid MFA token or backup code",
