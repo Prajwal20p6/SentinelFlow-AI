@@ -300,10 +300,17 @@ def get_qdrant_client():
     global _qdrant_client_instance
     if _qdrant_client_instance is None:
         current_settings = get_settings()
-        if current_settings.QDRANT_MODE == "server":
+        if current_settings.QDRANT_MODE == "cloud" or getattr(current_settings, "QDRANT_URL", None):
+            _qdrant_client_instance = QdrantClient(
+                url=current_settings.QDRANT_URL,
+                api_key=current_settings.QDRANT_API_KEY or None,
+                timeout=current_settings.QDRANT_TIMEOUT,
+            )
+        elif current_settings.QDRANT_MODE == "server":
             _qdrant_client_instance = QdrantClient(
                 host=current_settings.QDRANT_HOST,
                 port=current_settings.QDRANT_PORT,
+                api_key=current_settings.QDRANT_API_KEY or None,
                 timeout=current_settings.QDRANT_TIMEOUT,
             )
         else:

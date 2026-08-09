@@ -41,10 +41,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # ── Qdrant ───────────────────────────────────────────────
-    QDRANT_MODE: str = "local"  # "local" or "server"
+    QDRANT_MODE: str = "local"  # "local", "server", or "cloud"
     QDRANT_PATH: str = "./data/qdrant"
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
+    QDRANT_URL: str = ""
     QDRANT_COLLECTION: str = "runbooks"
     QDRANT_VECTOR_SIZE: int = 384
     QDRANT_API_KEY: str = ""
@@ -132,6 +133,7 @@ class Settings(BaseSettings):
             "VIRUSTOTAL_API_KEY": "",
             "ABUSEIPDB_API_KEY": "",
             "QDRANT_API_KEY": "",
+            "QDRANT_URL": "",
         }
         for field, default_val in secret_fields.items():
             loaded_val = get_secret(field, default_val)
