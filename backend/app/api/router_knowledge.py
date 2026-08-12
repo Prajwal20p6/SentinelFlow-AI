@@ -162,6 +162,23 @@ def ask_knowledge_assistant(
             "question": q_raw,
             "answer": "SentinelFlow AI is an autonomous, AI-driven incident response and infrastructure resilience platform for Kubernetes microservices. It combines real-time telemetry monitoring, Mastra workflow orchestration, Enkrypt AI safety guardrails, Qdrant vector RAG retrieval, and cryptographic audit ledgers.",
             "intent": "PLATFORM_KNOWLEDGE",
+            "llm_provider_mode": "DETERMINISTIC_PROJECT_KNOWLEDGE",
+            "rag_sources": []
+        }
+    elif "agent" in q or "handle incident" in q or "workflow" in q or "approval" in q:
+        return {
+            "question": q_raw,
+            "answer": "SentinelFlow AI coordinates 4 specialized agents in a Mastra workflow: 1) Root Cause Analysis (RCA) Agent, 2) Threat Intelligence Agent, 3) Prioritization Agent, and 4) Remediation Agent. Below the configured confidence threshold, remediation pauses at an approval gate for engineer sign-off.",
+            "intent": "AGENT_WORKFLOW",
+            "llm_provider_mode": "DETERMINISTIC_WORKFLOW_KNOWLEDGE",
+            "rag_sources": []
+        }
+    elif "fallback" in q or "qdrant" in q or "enkrypt" in q:
+        return {
+            "question": q_raw,
+            "answer": "SentinelFlow AI features transparent 4-tier vector fallback (Qdrant Cloud -> ChromaDB -> FAISS -> In-Memory) and Enkrypt AI safety envelope fallback (Cloud API -> Local Regex Guardrails). Every fallback response carries an explicit `is_simulated: true` badge in the UI.",
+            "intent": "ARCHITECTURE_FALLBACK",
+            "llm_provider_mode": "DETERMINISTIC_ARCHITECTURE_KNOWLEDGE",
             "rag_sources": []
         }
     elif "operating mode" in q or "autonomy mode" in q or "governance mode" in q:
@@ -170,14 +187,16 @@ def ask_knowledge_assistant(
             "question": q_raw,
             "answer": f"The current system operating mode is **{cfg.mode}** (Min Confidence: {cfg.min_confidence_score}%, Rate Limit: {cfg.rate_limit_per_minute}/min, Max Blast Radius: {cfg.max_blast_radius} services). Under {cfg.mode} mode, remediation actions require operator sign-off before auto-execution.",
             "intent": "SYSTEM_STATE",
+            "llm_provider_mode": "DETERMINISTIC_STATE_KNOWLEDGE",
             "rag_sources": []
         }
-    elif "what is cpu" in q or "cpu exhaustion" in q:
+    elif "what is cpu" in q or "cpu exhaustion" in q or "what is memory" in q:
         hits = search_similar_runbooks("CPU Exhaustion", limit=2)
         return {
             "question": q_raw,
-            "answer": "Central Processing Unit (CPU) exhaustion occurs when microservice workload demand exceeds node processing capacity (>90% utilization). SentinelFlow AI mitigates CPU exhaustion by scaling horizontal replicas or performing dynamic pod restarts.",
+            "answer": "CPU/Memory exhaustion occurs when microservice workload demand exceeds node resource capacity (>90% utilization). SentinelFlow AI mitigates this by scaling horizontal pod replicas or performing dynamic pod restarts.",
             "intent": "TECHNICAL_EXPLANATION",
+            "llm_provider_mode": "DETERMINISTIC_RAG_FALLBACK",
             "rag_sources": hits
         }
 
@@ -194,5 +213,6 @@ def ask_knowledge_assistant(
         "question": q_raw,
         "answer": answer,
         "intent": "RAG_RETRIEVAL",
+        "llm_provider_mode": "DETERMINISTIC_VECTOR_SEARCH",
         "rag_sources": hits
     }

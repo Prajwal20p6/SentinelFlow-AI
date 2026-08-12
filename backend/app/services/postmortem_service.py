@@ -265,13 +265,16 @@ def get_postmortem(db: Session, incident_id: int) -> Optional[Dict[str, Any]]:
 
 def _build_executive_summary(incident, root_cause, duration, impact):
     """Build a human-readable executive summary."""
+    is_final = incident.status in ["RESOLVED", "EXECUTED"]
+    report_title = "Final Incident Postmortem Report" if is_final else "Preliminary Incident Analysis (Active Incident)"
     lines = [
+        f"[{report_title}]",
         f"Incident #{incident.id}: {incident.title}",
         f"Severity: {incident.severity}",
-        f"Status: {incident.status}",
+        f"Status: {incident.status}" + (" (In Progress)" if not is_final else " (Resolved)"),
         f"Duration: {_format_duration(duration)}",
         f"Root Cause: {root_cause[:200]}",
-        f"Resolution: {incident.suggested_action or 'No action specified'}",
+        f"Resolution: {incident.suggested_action or 'Pending / Under Active Remediation'}",
         f"Business Impact: {impact.get('severity_description', 'Unknown')}",
     ]
     return "\n".join(lines)
