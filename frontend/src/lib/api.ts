@@ -5,6 +5,9 @@ export const getApiBaseUrl = (): string => {
     return process.env.NEXT_PUBLIC_API_URL;
   }
   if (typeof window !== 'undefined') {
+    if (window.location.hostname.includes('vercel.app')) {
+      return 'https://sentinelflow-backend-sjrb.onrender.com/api/v1';
+    }
     return `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
   }
   return 'http://127.0.0.1:8000/api/v1';
