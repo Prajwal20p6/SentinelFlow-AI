@@ -249,13 +249,13 @@ def get_postmortem(
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
     
-    # Generate postmortem if not exists and incident is resolved
+    # Generate postmortem if not exists
     postmortem = get_postmortem(db, incident_id)
-    if not postmortem and incident.status in ["EXECUTED", "RESOLVED"]:
+    if not postmortem:
         postmortem = generate_postmortem(db, incident_id)
     
     if not postmortem:
-        raise HTTPException(status_code=404, detail="Postmortem not available. Incident must be resolved first.")
+        raise HTTPException(status_code=404, detail="Postmortem not available.")
     
     return postmortem
 

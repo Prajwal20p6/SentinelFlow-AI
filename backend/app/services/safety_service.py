@@ -332,6 +332,39 @@ def validate_audit_chain(db: Session) -> dict:
     }
 
 
+def seed_default_audit_trails(db: Session) -> None:
+    """Seed initial cryptographic audit trail entries if table is empty."""
+    if db.query(AuditTrail).first():
+        return
+
+    sample_entries = [
+        ("kubectl rollout restart deployment/payment-service", "ALLOWED", 0.1, "admin@sentinelflow.ai"),
+        ("kubectl scale deployment/order-service --replicas=3", "ALLOWED", 0.2, "admin@sentinelflow.ai"),
+        ("rm -rf /var/data/db", "BLOCKED", 0.95, "system_agent@sentinelflow.ai"),
+        ("kubectl delete namespace production", "BLOCKED", 0.99, "untrusted_actor@sentinelflow.ai"),
+        ("kubectl get pods -n production", "ALLOWED", 0.0, "engineer@sentinelflow.ai"),
+    ]
+
+    prev_hash = "genesis"
+    for cmd, status, risk, actor in sample_entries:
+        hash_val = compute_chain_hash(f"{cmd}:{status}:{risk}", prev_hash)
+        entry = AuditTrail(
+            command_checked=cmd,
+            status=status,
+            risk_score=risk,
+            risk_assessment="Seed cryptographic audit chain entry for system safety governance verification.",
+            hash=hash_val,
+            performed_by=actor,
+            timestamp=datetime.now(timezone.utc),
+        )
+        db.add(entry)
+        db.commit()
+        db.refresh(entry)
+        prev_hash = entry.hash
+
+    logger.info("audit_trails_seeded", count=len(sample_entries))
+
+
 def _simulate_command_execution(command: str) -> str:
     """Simulate command execution for demo/hackathon purposes."""
     cmd_lower = command.lower()

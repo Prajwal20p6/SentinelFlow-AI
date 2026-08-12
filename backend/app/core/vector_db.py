@@ -454,53 +454,88 @@ def _seed_runbooks() -> None:
         },
         {
             "id": 2,
-            "title": "Unauthorized Access — Namespace Isolation",
-            "content": "For unauthorized access or token abuse in sensitive namespaces (e.g., kube-system), "
+            "title": "Disk Partition Full Recovery",
+            "content": "When disk partition storage exceeds 95% on a node, purge temporary log caches, "
+                       "truncate rotated log files, and expand persistent volume claims if dynamic provisioning is enabled. "
+                       "Run: kubectl exec <pod> -- rm -rf /tmp/cache. Verify inode usage.",
+            "tags": ["disk", "storage", "pvc", "volume", "partition"],
+            "severity": "CRITICAL",
+            "category": "storage",
+        },
+        {
+            "id": 3,
+            "title": "Unauthorized Intruder — Namespace Isolation",
+            "content": "For unauthorized access, credential leakage, or token abuse in sensitive namespaces (e.g., kube-system), "
                        "immediately isolate pod network policies, revoke active service account tokens, "
-                       "and notify the security operations channel. Audit RBAC bindings for privilege escalation.",
-            "tags": ["security", "auth", "kube-system", "rbac"],
+                       "and notify the SOC team. Audit RBAC bindings for privilege escalation.",
+            "tags": ["security", "auth", "intruder", "kube-system", "rbac"],
             "severity": "CRITICAL",
             "category": "security",
         },
         {
-            "id": 3,
-            "title": "Database OOMKilled Recovery",
-            "content": "If PostgreSQL pods report OOMKilled events, verify memory limits in the pod spec, "
-                       "clean temp files, run VACUUM FULL if applicable, and restart the pod with "
-                       "increased memory limits. Check for query memory leaks.",
-            "tags": ["database", "memory", "postgresql", "oom"],
-            "severity": "WARNING",
-            "category": "database",
-        },
-        {
             "id": 4,
-            "title": "Network Timeout — DNS Resolution Failure",
-            "content": "When services report DNS resolution failures or connection timeouts exceeding 30s, "
-                       "verify CoreDNS pods are healthy, check NetworkPolicy rules, and restart kube-dns "
-                       "if resolution cache is stale. Escalate if cluster-wide.",
-            "tags": ["network", "dns", "timeout", "coredns"],
-            "severity": "WARNING",
-            "category": "network",
+            "title": "Phishing Breach & Credential Revocation",
+            "content": "When phishing or compromise of employee credentials is detected, enforce immediate session logout across all active JWT sessions, "
+                       "trigger mandatory password resets, enable TOTP MFA requirement globally, and isolate compromised IP blocks via gateway WAF.",
+            "tags": ["phishing", "security", "credentials", "mfa", "auth"],
+            "severity": "CRITICAL",
+            "category": "security",
         },
         {
             "id": 5,
-            "title": "CrashLoopBackOff — Container Recovery",
-            "content": "For pods in CrashLoopBackOff state, inspect container logs for the root cause "
-                       "(missing config, permission errors, health check failures). Apply fixes and "
-                       "delete the pod to trigger fresh scheduling. Check resource quotas.",
-            "tags": ["crash", "restart", "crashloop", "container"],
-            "severity": "WARNING",
-            "category": "reliability",
+            "title": "DDoS Botnet Attack Mitigation",
+            "content": "When incoming HTTP traffic spikes abnormally from botnet IP networks, enable API Gateway token-bucket rate limiters, "
+                       "apply Cloudflare/WAF challenge rules for suspicious ASN blocks, and scale out backend edge pods to absorb ingress volume.",
+            "tags": ["ddos", "botnet", "waf", "rate-limit", "security"],
+            "severity": "CRITICAL",
+            "category": "security",
         },
         {
             "id": 6,
-            "title": "Persistent Volume Claim — Storage Exhaustion",
-            "content": "When PVC usage exceeds 85%, identify large files for cleanup, expand the PV if "
-                       "the storage class supports dynamic provisioning, or migrate data to a larger volume. "
-                       "Set up alerts for 70% threshold warnings.",
-            "tags": ["disk", "storage", "pvc", "volume"],
-            "severity": "WARNING",
-            "category": "storage",
+            "title": "Data Breach Leak Containment",
+            "content": "When unauthorized egress of PII or sensitive data is flagged by Enkrypt AI guardrails, immediately apply egress network policy drops, "
+                       "revoke database connection strings, rotate encryption keys, and generate a regulatory compliance audit report.",
+            "tags": ["databreach", "pii", "leak", "enkrypt", "compliance"],
+            "severity": "CRITICAL",
+            "category": "security",
+        },
+        {
+            "id": 7,
+            "title": "Database Memory OOMKilled Recovery",
+            "content": "If PostgreSQL or Redis pods report OOMKilled events, verify memory limits in the pod spec, "
+                       "clean temp query caches, run VACUUM FULL if applicable, and restart the pod with "
+                       "increased memory limits. Check for query memory leaks.",
+            "tags": ["database", "memory", "postgresql", "oom", "redis"],
+            "severity": "HIGH",
+            "category": "database",
+        },
+        {
+            "id": 8,
+            "title": "High Latency SLA Breach Response",
+            "content": "When P99 latency exceeds SLA thresholds (>500ms), check downstream microservice dependencies, "
+                       "enable circuit breakers for failing external integrations, and scale horizontal pod autoscalers.",
+            "tags": ["latency", "sla", "performance", "circuit-breaker"],
+            "severity": "HIGH",
+            "category": "performance",
+        },
+        {
+            "id": 9,
+            "title": "Error Rate Spike Containment",
+            "content": "When 5xx HTTP error rate spikes above 5% of total requests, roll back the recent deployment to the last stable release version, "
+                       "inspect error stack traces in telemetry logs, and verify backend database connection pool health.",
+            "tags": ["error-rate", "rollback", "http-5xx", "reliability"],
+            "severity": "HIGH",
+            "category": "reliability",
+        },
+        {
+            "id": 10,
+            "title": "Network Outage & CoreDNS Resolution Recovery",
+            "content": "When services report DNS resolution failures or connection timeouts exceeding 30s, "
+                       "verify CoreDNS pods are healthy, check NetworkPolicy rules, and restart kube-dns "
+                       "if resolution cache is stale. Escalate if cluster-wide.",
+            "tags": ["network", "dns", "timeout", "coredns", "outage"],
+            "severity": "HIGH",
+            "category": "network",
         },
     ]
 

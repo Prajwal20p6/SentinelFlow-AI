@@ -614,6 +614,17 @@ class ExecutionConfigUpdateRequest(BaseModel):
             raise ValueError("Invalid operating mode. Must be MANUAL, ASSISTED, or AUTONOMOUS.")
 
 
+class KnowledgeAskRequest(BaseModel):
+    question: str = Field(..., description="User query or question to the AI Knowledge Assistant")
+
+class KnowledgeAskResponse(BaseModel):
+    question: str
+    answer: str
+    intent: str
+    rag_sources: list[dict[str, Any]] = []
+
+
+
 
 
 

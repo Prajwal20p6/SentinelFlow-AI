@@ -369,6 +369,13 @@ class APIClient {
     });
   }
 
+  async askKnowledgeAssistant(question: string): Promise<{ question: string; answer: string; intent: string; rag_sources: any[] }> {
+    return this.request('/knowledge/ask', {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    });
+  }
+
   async getObservabilitySummary(): Promise<ObservabilitySummary> {
     return this.request('/agent/observability/summary');
   }

@@ -126,3 +126,73 @@ def search_knowledge_base(
         category_filter=category
     )
     return hits
+
+
+@router.post("/ask")
+def ask_knowledge_assistant(
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    AI Knowledge Assistant Endpoint.
+    Intelligently routes queries to Conversational, Factual Platform Knowledge, or Vector RAG Retrieval.
+    """
+    from ..core.vector_db import search_similar_runbooks
+    from ..services.execution_mode_service import ExecutionModeService
+
+    q_raw = body.get("question", "").strip()
+    if not q_raw:
+        raise HTTPException(status_code=400, detail="Question cannot be empty.")
+
+    q = q_raw.lower()
+
+    # 1. Conversational Greetings (No expensive vector search)
+    if q in ["hi", "hello", "hey", "greetings", "good morning", "good evening", "who are you"]:
+        return {
+            "question": q_raw,
+            "answer": "Hello! I am the SentinelFlow AI Knowledge & SecOps Assistant. I can answer questions about system infrastructure, platform governance, active operating modes, threat mitigation, and automated runbook SOPs.",
+            "intent": "CONVERSATIONAL",
+            "rag_sources": []
+        }
+
+    # 2. Factual System / Company / Operating Mode Knowledge
+    if "sentinelflow" in q or "company" in q or "platform" in q:
+        return {
+            "question": q_raw,
+            "answer": "SentinelFlow AI is an autonomous, AI-driven incident response and infrastructure resilience platform for Kubernetes microservices. It combines real-time telemetry monitoring, Mastra workflow orchestration, Enkrypt AI safety guardrails, Qdrant vector RAG retrieval, and cryptographic audit ledgers.",
+            "intent": "PLATFORM_KNOWLEDGE",
+            "rag_sources": []
+        }
+    elif "operating mode" in q or "autonomy mode" in q or "governance mode" in q:
+        cfg = ExecutionModeService.get_config(db)
+        return {
+            "question": q_raw,
+            "answer": f"The current system operating mode is **{cfg.mode}** (Min Confidence: {cfg.min_confidence_score}%, Rate Limit: {cfg.rate_limit_per_minute}/min, Max Blast Radius: {cfg.max_blast_radius} services). Under {cfg.mode} mode, remediation actions require operator sign-off before auto-execution.",
+            "intent": "SYSTEM_STATE",
+            "rag_sources": []
+        }
+    elif "what is cpu" in q or "cpu exhaustion" in q:
+        hits = search_similar_runbooks("CPU Exhaustion", limit=2)
+        return {
+            "question": q_raw,
+            "answer": "Central Processing Unit (CPU) exhaustion occurs when microservice workload demand exceeds node processing capacity (>90% utilization). SentinelFlow AI mitigates CPU exhaustion by scaling horizontal replicas or performing dynamic pod restarts.",
+            "intent": "TECHNICAL_EXPLANATION",
+            "rag_sources": hits
+        }
+
+    # 3. Vector RAG Retrieval over Runbooks & SOPs
+    hits = search_similar_runbooks(q_raw, limit=3)
+    if hits:
+        top_title = hits[0].get("title", "Runbook SOP")
+        top_content = hits[0].get("content", "")
+        answer = f"Based on retrieved RAG knowledge from **{top_title}**:\n\n{top_content}"
+    else:
+        answer = f"SentinelFlow AI Knowledge Assistant processed '{q_raw}'. No exact matching runbook SOP was found in vector memory, but general Kubernetes isolation policies apply."
+
+    return {
+        "question": q_raw,
+        "answer": answer,
+        "intent": "RAG_RETRIEVAL",
+        "rag_sources": hits
+    }

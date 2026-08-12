@@ -76,6 +76,9 @@ async def lifespan(app: FastAPI):
             db.add(config)
             db.commit()
             logger.info("execution_config_seeded")
+
+        from .services.safety_service import seed_default_audit_trails
+        seed_default_audit_trails(db)
     finally:
         db.close()
 
