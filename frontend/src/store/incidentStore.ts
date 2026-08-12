@@ -14,6 +14,8 @@ interface IncidentState {
   serverHealth: any;
   activeIncidentCount: number;
   circuitBreakers: Record<string, any>;
+  govMode: string;
+  govMinConfidence: number;
 
   setIncidents: (incidents: Incident[] | ((prev: Incident[]) => Incident[])) => void;
   setSelectedIncident: (selectedIncident: IncidentDetail | null | ((prev: IncidentDetail | null) => IncidentDetail | null)) => void;
@@ -25,6 +27,8 @@ interface IncidentState {
   setServerHealth: (serverHealth: any) => void;
   setActiveIncidentCount: (activeIncidentCount: number) => void;
   setCircuitBreakers: (circuitBreakers: Record<string, any>) => void;
+  setGovMode: (govMode: string) => void;
+  setGovMinConfidence: (govMinConfidence: number) => void;
 }
 
 export const useIncidentStore = create<IncidentState>((set) => ({
@@ -38,6 +42,8 @@ export const useIncidentStore = create<IncidentState>((set) => ({
   serverHealth: null,
   activeIncidentCount: 0,
   circuitBreakers: {},
+  govMode: 'ASSISTED',
+  govMinConfidence: 90,
 
   setIncidents: (updater) =>
     set((state) => ({
@@ -55,4 +61,6 @@ export const useIncidentStore = create<IncidentState>((set) => ({
   setServerHealth: (serverHealth) => set({ serverHealth }),
   setActiveIncidentCount: (activeIncidentCount) => set({ activeIncidentCount }),
   setCircuitBreakers: (circuitBreakers) => set({ circuitBreakers }),
+  setGovMode: (govMode) => set({ govMode }),
+  setGovMinConfidence: (govMinConfidence) => set({ govMinConfidence }),
 }));

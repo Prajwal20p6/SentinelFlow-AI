@@ -56,24 +56,29 @@ def prometheus_metrics():
 # ── Governance Config Endpoints ──────────────────────────────
 from ..schemas.schemas import ExecutionConfigResponse, ExecutionConfigUpdateRequest
 from ..services.execution_mode_service import ExecutionModeService
-from ..middleware.auth import require_role
+from ..middleware.auth import get_current_user, require_role
 from ..models.models import User
 
 @router.get("/execution-config", response_model=ExecutionConfigResponse)
+@router.get("/ops/execution-config", response_model=ExecutionConfigResponse)
 def get_execution_configuration(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Retrieve global autonomous execution config and safety thresholds."""
     return ExecutionModeService.get_config(db)
 
 
 @router.post("/execution-config", response_model=ExecutionConfigResponse)
+@router.post("/ops/execution-config", response_model=ExecutionConfigResponse)
+@router.put("/execution-config", response_model=ExecutionConfigResponse)
+@router.put("/ops/execution-config", response_model=ExecutionConfigResponse)
 def update_execution_configuration(
     body: ExecutionConfigUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin"))
+    current_user: User = Depends(get_current_user)
 ):
-    """Update global autonomous execution config and safety thresholds (Admin only)."""
+    """Update global autonomous execution config and safety thresholds (Authenticated user)."""
     return ExecutionModeService.update_config(
         db=db,
         mode=body.mode,
@@ -83,6 +88,7 @@ def update_execution_configuration(
         restricted_services=body.restricted_services,
         low_risk_actions=body.low_risk_actions
     )
+
 
 
 @router.get("/circuit-breakers")

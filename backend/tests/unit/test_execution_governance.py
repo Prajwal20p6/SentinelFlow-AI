@@ -52,12 +52,12 @@ def test_governance_rules_eval(db_session):
     assert allowed is False
     assert "MANUAL" in reason
 
-    # SEMI_AUTONOMOUS configuration
+    # AUTONOMOUS configuration
     ExecutionModeService.update_config(
         db=db_session,
-        mode="SEMI_AUTONOMOUS",
+        mode="AUTONOMOUS",
         rate_limit_per_minute=5,
-        min_confidence_score=90,
+        min_confidence_score=85,
         max_blast_radius=5,
         restricted_services="billing",
         low_risk_actions="restart_pod,scale_service,restart_deployment,rollout_restart"
@@ -87,7 +87,7 @@ def test_governance_rules_eval(db_session):
         severity="CRITICAL"
     )
     assert allowed is False
-    assert "below P0 threshold" in reason
+    assert "configured threshold" in reason.lower()
 
     # 2. Test P1 (HIGH) - allowed actions (Restart pod, scale service)
     # Confidence >= 90
@@ -102,33 +102,42 @@ def test_governance_rules_eval(db_session):
     )
     assert allowed is True
 
-    # Exclude deployment actions for P1
+    # High risk action denied
     allowed, reason = ExecutionModeService.should_auto_execute(
         db=db_session,
         incident_id=1,
         confidence_score=95,
-        action_command="restart_deployment catalog",
+        action_command="delete pod catalog",
         target_service="catalog",
         affected_services_count=1,
         severity="HIGH"
     )
     assert allowed is False
-    assert "Deployment actions are not allowed for P1" in reason
+    assert "high-risk" in reason.lower()
 
-    # Confidence < 90
+    # Confidence < min_confidence_score (85)
     allowed, reason = ExecutionModeService.should_auto_execute(
         db=db_session,
         incident_id=1,
-        confidence_score=88,
+        confidence_score=80,
         action_command="restart_pod catalog",
         target_service="catalog",
         affected_services_count=1,
         severity="HIGH"
     )
     assert allowed is False
-    assert "below P1 threshold" in reason
+    assert "configured threshold" in reason.lower()
 
-    # 3. Test P2 (MEDIUM) & P3 (LOW) - requires manual approval
+    # 3. Test ASSISTED mode - requires manual approval
+    ExecutionModeService.update_config(
+        db=db_session,
+        mode="ASSISTED",
+        rate_limit_per_minute=5,
+        min_confidence_score=90,
+        max_blast_radius=5,
+        restricted_services="billing",
+        low_risk_actions="restart_pod"
+    )
     allowed, reason = ExecutionModeService.should_auto_execute(
         db=db_session,
         incident_id=1,
@@ -139,7 +148,18 @@ def test_governance_rules_eval(db_session):
         severity="MEDIUM"
     )
     assert allowed is False
-    assert "Manual approval required" in reason
+    assert "ASSISTED" in reason
+
+    # Restore AUTONOMOUS for per-service overrides
+    ExecutionModeService.update_config(
+        db=db_session,
+        mode="AUTONOMOUS",
+        rate_limit_per_minute=5,
+        min_confidence_score=85,
+        max_blast_radius=5,
+        restricted_services="billing",
+        low_risk_actions="restart_pod"
+    )
 
     # 4. Per-Service Overrides
     # Payment API override
@@ -187,13 +207,13 @@ def test_execution_config_endpoint(client, db_session, auth_headers_admin):
         app.include_router(ops_router, prefix="/api/v1")
 
     # Fetch
-    resp = client.get("/api/v1/execution-config")
+    resp = client.get("/api/v1/execution-config", headers=auth_headers_admin)
     assert resp.status_code == 200
-    assert resp.json()["mode"] in ["MANUAL", "SEMI_AUTONOMOUS", "FULLY_AUTONOMOUS"]
+    assert resp.json()["mode"] in ["MANUAL", "ASSISTED", "AUTONOMOUS"]
 
     # Update
     update_payload = {
-        "mode": "FULLY_AUTONOMOUS",
+        "mode": "AUTONOMOUS",
         "rate_limit_per_minute": 10,
         "min_confidence_score": 95,
         "max_blast_radius": 8,
@@ -202,5 +222,5 @@ def test_execution_config_endpoint(client, db_session, auth_headers_admin):
     }
     post_resp = client.post("/api/v1/execution-config", json=update_payload, headers=auth_headers_admin)
     assert post_resp.status_code == 200
-    assert post_resp.json()["mode"] == "FULLY_AUTONOMOUS"
+    assert post_resp.json()["mode"] == "AUTONOMOUS"
     assert post_resp.json()["min_confidence_score"] == 95

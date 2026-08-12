@@ -592,11 +592,27 @@ class ExecutionConfigResponse(BaseModel):
 
 class ExecutionConfigUpdateRequest(BaseModel):
     mode: str
-    rate_limit_per_minute: int
-    min_confidence_score: int
-    max_blast_radius: int
-    restricted_services: str
-    low_risk_actions: str
+    rate_limit_per_minute: int = Field(..., ge=1, le=1000, description="Max autonomous executions per minute (1-1000)")
+    min_confidence_score: int = Field(..., ge=0, le=100, description="Minimum confidence score required (0-100)")
+    max_blast_radius: int = Field(..., ge=1, le=1000, description="Maximum allowed affected services (1-1000)")
+    restricted_services: str = Field(default="payment")
+    low_risk_actions: str = Field(default="restart_pod,scale_service,rollout_restart")
+
+    @field_validator("mode")
+    @classmethod
+    def validate_and_normalize_mode(cls, v: str) -> str:
+        if not v or not isinstance(v, str):
+            raise ValueError("Operating mode must be a non-empty string.")
+        upper = v.strip().upper()
+        if upper in ("MANUAL",):
+            return "MANUAL"
+        elif upper in ("ASSISTED", "POLICY_BASED", "SUPERVISED", "SEMI_AUTONOMOUS"):
+            return "ASSISTED"
+        elif upper in ("AUTONOMOUS", "FULLY_AUTONOMOUS"):
+            return "AUTONOMOUS"
+        else:
+            raise ValueError("Invalid operating mode. Must be MANUAL, ASSISTED, or AUTONOMOUS.")
+
 
 
 

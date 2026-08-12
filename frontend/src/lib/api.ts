@@ -286,6 +286,7 @@ class APIClient {
     return this.request(`/incidents/${id}/runbooks`);
   }
 
+
   async executeRemediation(id: number, optionId: string): Promise<any> {
     const keyKey = `sf_idem_exec_${id}_${optionId}`;
     let key = typeof window !== 'undefined' ? localStorage.getItem(keyKey) : null;
@@ -308,6 +309,24 @@ class APIClient {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ runbook_id: runbookId, success })
+    });
+  }
+
+  async getExecutionConfig(): Promise<any> {
+    return this.request('/ops/execution-config');
+  }
+
+  async updateExecutionConfig(config: {
+    mode: string;
+    rate_limit_per_minute: number;
+    min_confidence_score: number;
+    max_blast_radius: number;
+    restricted_services: string;
+    low_risk_actions: string;
+  }): Promise<any> {
+    return this.request('/ops/execution-config', {
+      method: 'POST',
+      body: JSON.stringify(config),
     });
   }
 

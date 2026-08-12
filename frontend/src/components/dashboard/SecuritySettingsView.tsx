@@ -188,11 +188,9 @@ export const SecuritySettingsView: React.FC<SecuritySettingsViewProps> = ({
                   onChange={e => setGovMode(e.target.value)}
                   className="w-full px-3 py-2 bg-[#0d111a] border border-white/10 rounded-lg text-slate-200 focus:outline-none focus:border-[#00ff88]/30 font-mono text-xs"
                 >
-                  <option value="MANUAL">MANUAL (Default - Always require human override)</option>
-                  <option value="POLICY_BASED">POLICY-BASED (Recommended - Auto-run based on rules)</option>
-                  <option value="SUPERVISED">SUPERVISED (Advanced - Auto-run with live operator oversight)</option>
-                  <option value="SEMI_AUTONOMOUS">SEMI_AUTONOMOUS (Legacy - Auto-run low-risk, require approval for high-risk)</option>
-                  <option value="FULLY_AUTONOMOUS">FULLY_AUTONOMOUS (Legacy - Auto-run all actions meeting safety limits)</option>
+                  <option value="MANUAL">MANUAL (Require human approval for all actions)</option>
+                  <option value="ASSISTED">ASSISTED (Default - AI analyzes & validates, human approves execution)</option>
+                  <option value="AUTONOMOUS">AUTONOMOUS (Auto-run policy-approved actions meeting safety gates)</option>
                 </select>
               </div>
 

@@ -230,9 +230,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className="text-slate-500 font-mono text-[10px]">Governance</span>
           <span
             className={`font-mono font-bold text-[9px] px-1.5 py-0.5 rounded ${
-              govMode === 'FULLY_AUTONOMOUS'
+              govMode === 'AUTONOMOUS' || govMode === 'FULLY_AUTONOMOUS'
                 ? 'bg-emerald-500/10 text-[#00ff88] border border-emerald-500/20'
-                : govMode === 'SEMI_AUTONOMOUS'
+                : govMode === 'ASSISTED' || govMode === 'SEMI_AUTONOMOUS'
                 ? 'bg-[#00d4ff]/10 text-[#00d4ff] border border-[#00d4ff]/20'
                 : 'bg-slate-800 text-slate-400 border border-slate-700'
             }`}

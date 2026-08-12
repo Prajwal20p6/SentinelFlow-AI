@@ -39,13 +39,8 @@ export default function SettingsPage() {
 
   const fetchGovConfig = async () => {
     try {
-      const apiBase = getApiBaseUrl();
-      const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${apiBase}/execution-config`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await api.getExecutionConfig();
+      if (data) {
         setGovMode(data.mode);
         setGovRateLimit(data.rate_limit_per_minute);
         setGovMinConfidence(data.min_confidence_score);
@@ -117,32 +112,26 @@ export default function SettingsPage() {
     setGovLoading(true);
     setGovMsg('');
     try {
-      const apiBase = getApiBaseUrl();
-      const token = localStorage.getItem('sf_token');
-      const res = await fetch(`${apiBase}/execution-config`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          mode: govMode,
-          rate_limit_per_minute: Number(govRateLimit),
-          min_confidence_score: Number(govMinConfidence),
-          max_blast_radius: Number(govMaxBlastRadius),
-          restricted_services: govRestrictedServices,
-          low_risk_actions: govLowRiskActions
-        })
+      const data = await api.updateExecutionConfig({
+        mode: govMode,
+        rate_limit_per_minute: Number(govRateLimit),
+        min_confidence_score: Number(govMinConfidence),
+        max_blast_radius: Number(govMaxBlastRadius),
+        restricted_services: govRestrictedServices,
+        low_risk_actions: govLowRiskActions,
       });
-      if (res.ok) {
+      if (data) {
+        setGovMode(data.mode);
+        setGovRateLimit(data.rate_limit_per_minute);
+        setGovMinConfidence(data.min_confidence_score);
+        setGovMaxBlastRadius(data.max_blast_radius);
+        setGovRestrictedServices(data.restricted_services);
+        setGovLowRiskActions(data.low_risk_actions);
         setGovMsg('Autopilot governance configuration successfully updated.');
         setTimeout(() => setGovMsg(''), 4000);
-      } else {
-        const errData = await res.json();
-        setGovMsg(`Error: ${errData.detail || 'Failed to update governance configurations'}`);
       }
     } catch (err: any) {
-      setGovMsg(`Network Error: ${err.message || err}`);
+      setGovMsg(`Error: ${err.data?.detail || err.message || 'Failed to update governance configurations'}`);
     } finally {
       setGovLoading(false);
     }

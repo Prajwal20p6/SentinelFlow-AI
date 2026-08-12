@@ -14,14 +14,12 @@
 
 ## 🚀 Live Demo
 
-### **Deploy in 1-Click**
-Click the button below to deploy the entire SentinelFlow AI ecosystem (FastAPI, Next.js, PostgreSQL, Redis, and Qdrant) directly on your Railway project dashboard:
+### **Production Deployment Architecture**
+SentinelFlow AI is deployed on Vercel (Frontend) and Render (Backend):
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/Prajwal20p6/SentinelFlow-AI)
-
-* **Production URL:** `https://frontend-production-3b6e.up.railway.app/`
-* **Backend API URL:** `https://backend-production-f51a.up.railway.app/api/v1`
-* **Health Check URL:** `https://backend-production-f51a.up.railway.app/api/v1/health`
+* **Production Frontend (Vercel):** `https://sentinel-flow-ai-sigma.vercel.app/`
+* **Backend API Gateway (Render):** `https://sentinelflow-backend-sjrb.onrender.com/api/v1`
+* **Health Check URL:** `https://sentinelflow-backend-sjrb.onrender.com/`
 
 ### 🔑 Demo Credentials
 * **Email:** `admin@sentinelflow.ai`
@@ -232,36 +230,36 @@ Copy `.env.example` to `.env` in the root or individual service directories:
 - [`frontend/.env.example`](frontend/.env.example)
 - [`mastra-service/.env.example`](mastra-service/.env.example)
 
-### **Required Railway Dashboard Environment Variables**
+### **Production Deployment Environment Variables (Render & Vercel)**
 
-The table below explicitly details the variables required in Railway's project dashboard for a clean production deployment:
+The tables below explicitly detail the variables required in Render and Vercel dashboards for a clean production deployment:
 
-#### **1. Backend Gateway Service (`backend/`)**
+#### **1. Render Backend Gateway Service (`backend/`)**
 | Variable | Description | Example / Required Value |
 | :--- | :--- | :--- |
 | `SECRET_KEY` | JWT token signature key (at least 32 bytes) | `sentinelflow-prod-jwt-secret-key-32bytes` |
 | `ENCRYPTION_KEY` | AES-256 database column encryption key | `sentinelflow-aes256-encryption-key!!` |
-| `ALLOWED_ORIGINS` | Comma-separated CORS allowed origin URLs | `https://frontend-production-3b6e.up.railway.app` |
-| `DATABASE_URL` | PostgreSQL URI (provided by Railway Postgres plugin) | `postgresql://sentinelflow:...@railway.app:5432/railway` |
-| `MASTRA_URL` | Deployed Mastra agent service URL | `https://mastra-production.up.railway.app` |
+| `ALLOWED_ORIGINS` | Comma-separated CORS allowed origin URLs | `https://sentinel-flow-ai-sigma.vercel.app,http://localhost:3000` |
+| `DATABASE_URL` | PostgreSQL URI | `postgresql://sentinelflow:...@render.com:5432/sentinelflow_db` |
+| `MASTRA_URL` | Deployed Mastra agent service URL | `http://localhost:3001` |
 | `LLM_PROVIDER` | Execution provider mode (`simulation`, `openai`, `anthropic`) | `simulation` |
 | `FF_DEMO_MODE` | Enable scenario triggers and simulation fallbacks | `true` |
 | `ENKRYPTAI_ENABLED` | Enable Enkrypt AI guardrail evaluation | `true` |
 
-#### **2. Frontend Web Application (`frontend/`)**
+#### **2. Vercel Frontend Web Application (`frontend/`)**
 | Variable | Description | Example / Required Value |
 | :--- | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | Live backend API Gateway URL (HTTP REST) | `https://backend-production-f51a.up.railway.app/api/v1` |
-| `NEXT_PUBLIC_WS_URL` | Live WebSocket endpoint URL | `wss://backend-production-f51a.up.railway.app/api/v1/ws` |
+| `NEXT_PUBLIC_API_URL` | Live backend API Gateway URL (HTTP REST) | `https://sentinelflow-backend-sjrb.onrender.com/api/v1` |
+| `NEXT_PUBLIC_WS_URL` | Live WebSocket endpoint URL | `wss://sentinelflow-backend-sjrb.onrender.com/api/v1/ws` |
 | `PORT` | Web server listening port | `3000` |
 
 #### **3. Mastra Agent Service (`mastra-service/`)**
 | Variable | Description | Example / Required Value |
 | :--- | :--- | :--- |
-| `PYTHON_BACKEND_URL` | Root URL of Python FastAPI backend service | `https://backend-production-f51a.up.railway.app` |
+| `PYTHON_BACKEND_URL` | Root URL of Python FastAPI backend service | `https://sentinelflow-backend-sjrb.onrender.com` |
 | `PYTHON_BACKEND_API_KEY` | Shared internal authentication key | `sentinelflow_super_secret_2026` |
 | `NODE_ENV` | Environment execution mode | `production` |
-| `PORT` | Listening port for Mastra server | `3001` (or Railway assigned PORT) |
+| `PORT` | Listening port for Mastra server | `3001` |
 
 ---
 

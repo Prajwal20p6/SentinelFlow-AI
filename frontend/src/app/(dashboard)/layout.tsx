@@ -23,9 +23,13 @@ export default function DashboardLayout({
     setActiveIncidentCount,
     serverHealth,
     setIncidents,
+    govMode,
+    govMinConfidence,
+    setGovMode,
+    setGovMinConfidence,
   } = useIncidentStore();
 
-  // Redirect unauthenticated users to root login page & hydrate session
+  // Redirect unauthenticated users to root login page & hydrate session & fetch config
   useEffect(() => {
     const token = localStorage.getItem('sf_token');
     if (!isLoggedIn && !token) {
@@ -39,7 +43,18 @@ export default function DashboardLayout({
         } catch (e) {}
       }
     }
-  }, [isLoggedIn, user, router, setIsLoggedIn, setUser]);
+
+    if (token || isLoggedIn) {
+      api.getExecutionConfig()
+        .then((cfg) => {
+          if (cfg) {
+            setGovMode(cfg.mode || 'ASSISTED');
+            setGovMinConfidence(cfg.min_confidence_score ?? 90);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isLoggedIn, user, router, setIsLoggedIn, setUser, setGovMode, setGovMinConfidence]);
 
   // Real-time WebSocket Subscriptions for the dashboard shell
   useWebSocket('IncidentUpdate', () => {
@@ -79,8 +94,8 @@ export default function DashboardLayout({
         <Sidebar
           activeIncidentCount={activeIncidentCount}
           serverHealth={serverHealth}
-          govMode="MANUAL"
-          govMinConfidence={90}
+          govMode={govMode}
+          govMinConfidence={govMinConfidence}
         />
 
         <main className="flex-1 p-8 overflow-y-auto z-10 relative">
