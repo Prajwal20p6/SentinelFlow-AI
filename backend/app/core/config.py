@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 15 minutes
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30  # 30 days
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    EMAIL_PROVIDER_API_KEY: str = ""
+    EMAIL_FROM: str = "noreply@sentinelflow.ai"
+    APP_BASE_URL: str = "https://sentinel-flow-ai-sigma.vercel.app"
 
     # ── Encryption ───────────────────────────────────────────
     ENCRYPTION_KEY: str = "sentinelflow-aes256-encryption-key!!"

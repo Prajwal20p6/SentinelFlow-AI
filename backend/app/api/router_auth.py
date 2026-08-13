@@ -6,6 +6,7 @@ Login, registration, token refresh, session tracking, MFA, and password resets.
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
+import os
 import jwt
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func
@@ -13,6 +14,7 @@ from sqlalchemy import func
 from ..core.database import get_db
 from ..core.config import get_settings
 from ..core.security import decode_token
+from ..core.observability import logger
 from ..middleware.auth import get_current_user
 from ..models.models import User, UserSession
 from ..schemas.schemas import (
@@ -26,6 +28,7 @@ from ..services.auth_service import (
     refresh_user_session, revoke_session, revoke_all_sessions,
     generate_verification_token, generate_reset_token, hash_password,
 )
+from ..services.email_service import send_verification_email, send_password_reset_email
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -102,7 +105,7 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     user.is_active = is_test
     # Generate verification token server-side
     token = generate_verification_token(user.email)
-    logger.info("user_registered_verification_token_created", email=user.email)
+    send_verification_email(user.email, token)
     
     return {
         "message": f"Registration successful. We've sent a verification email to {user.email}. Please check your inbox and verify your email before signing in.",
@@ -220,7 +223,7 @@ def resend_verification(body: Dict[str, Any], db: Session = Depends(get_db)):
     user = db.query(User).filter(func.lower(User.email) == email).first()
     if user and not user.email_verified:
         token = generate_verification_token(user.email)
-        logger.info("resend_verification_token_created", email=user.email)
+        send_verification_email(user.email, token)
 
     return {
         "message": f"If an unverified account exists for {email}, a verification email has been sent. Please check your inbox.",
@@ -240,23 +243,63 @@ def google_auth(
         raise HTTPException(status_code=400, detail="Google credential token is required.")
 
     google_user_info = None
+    client_id = getattr(settings, "GOOGLE_CLIENT_ID", None) or os.getenv("GOOGLE_CLIENT_ID")
 
-    # Validate Google ID Token via Google's tokeninfo endpoint
+    # 1. Try Google's official google-auth library if available
     try:
-        import httpx
-        resp = httpx.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}", timeout=5.0)
-        if resp.status_code == 200:
-            google_user_info = resp.json()
-    except Exception as e:
-        logger.warning("google_tokeninfo_http_failed", error=str(e))
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+        google_user_info = id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            audience=client_id if client_id else None
+        )
+    except Exception as err:
+        logger.debug("google_auth_library_verify_failed", error=str(err))
+
+    # 2. Fallback to Google's official HTTP tokeninfo endpoint
+    if not google_user_info:
+        try:
+            import httpx
+            resp = httpx.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}", timeout=5.0)
+            if resp.status_code == 200:
+                google_user_info = resp.json()
+        except Exception as e:
+            logger.warning("google_tokeninfo_http_failed", error=str(e))
 
     if not google_user_info or not google_user_info.get("email"):
-        raise HTTPException(status_code=401, detail="Invalid Google authentication token.")
+        raise HTTPException(status_code=401, detail="Invalid or expired Google authentication token.")
+
+    # 3. Validate issuer
+    iss = google_user_info.get("iss", "")
+    if iss not in ["accounts.google.com", "https://accounts.google.com"]:
+        raise HTTPException(status_code=401, detail="Invalid Google token issuer.")
 
     email = google_user_info["email"].strip().lower()
     full_name = google_user_info.get("name", email.split("@")[0])
+    sub = google_user_info.get("sub")
 
-    user = db.query(User).filter(func.lower(User.email) == email).first()
+    # 4. Account linking logic
+    # Case A: User exists with this exact google_subject_id
+    user = None
+    if sub:
+        user = db.query(User).filter(User.google_subject_id == sub).first()
+
+    # Case B: User exists with matching email
+    if not user:
+        user = db.query(User).filter(func.lower(User.email) == email).first()
+        if user:
+            if user.google_subject_id and user.google_subject_id != sub:
+                raise HTTPException(
+                    status_code=400,
+                    detail="This email account is associated with a different Google ID."
+                )
+            user.google_subject_id = sub
+            user.email_verified = True
+            user.is_active = True
+            db.commit()
+
+    # Case C: Create new user account
     if not user:
         import secrets
         user = create_user(
@@ -268,9 +311,7 @@ def google_auth(
             email_verified=True,
             is_active=True,
         )
-    else:
-        user.email_verified = True
-        user.is_active = True
+        user.google_subject_id = sub
         db.commit()
 
     ip_address = request.client.host if request.client else None
@@ -296,7 +337,7 @@ def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
     db.commit()
 
-    logger.info("password_reset_token_created", email=user.email)
+    send_password_reset_email(user.email, token)
     return {"message": f"A password reset link has been sent to {user.email}. Please check your inbox."}
 
 
