@@ -154,6 +154,25 @@ class APIClient {
     });
   }
 
+  async googleLogin(credential: string): Promise<any> {
+    const data = await this.request<any>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    });
+    if (data.access_token) {
+      this.setTokens(data.access_token, data.refresh_token);
+      localStorage.setItem('sf_user', JSON.stringify(data.user));
+    }
+    return data;
+  }
+
+  async resendVerification(email: string): Promise<any> {
+    return this.request('/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
   async verifyEmail(token: string): Promise<any> {
     return this.request(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
       method: 'POST',

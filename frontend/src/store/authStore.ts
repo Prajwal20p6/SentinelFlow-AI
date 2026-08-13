@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { User } from '../types';
 
-export type AuthView = 'login' | 'register' | 'forgot' | 'reset' | 'reset_password_final';
+export type AuthView = 'login' | 'register' | 'forgot' | 'reset' | 'reset_password_final' | 'verify_notice';
 
 interface AuthState {
   isLoggedIn: boolean;

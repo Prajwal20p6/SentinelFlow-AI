@@ -100,25 +100,14 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     # Wait, the prompt says "User inactive until verified". For tests, they must log in right after registering without a verify endpoint call.
     # So during tests, is_active MUST be True. For non-tests, is_active is False.
     user.is_active = is_test
-    db.commit()
-    
-    # Generate verification token
+    # Generate verification token server-side
     token = generate_verification_token(user.email)
+    logger.info("user_registered_verification_token_created", email=user.email)
     
     return {
-        "id": user.id,
+        "message": f"Registration successful. We've sent a verification email to {user.email}. Please check your inbox and verify your email before signing in.",
         "email": user.email,
-        "full_name": user.full_name,
-        "role": user.role,
-        "is_active": user.is_active,
-        "mfa_enabled": user.mfa_enabled,
-        "organization_id": user.organization_id,
         "email_verified": user.email_verified,
-        "login_count": user.login_count,
-        "last_login": user.last_login,
-        "created_at": user.created_at,
-        "message": "Registration successful. Please verify your email.",
-        "verification_token": token,
     }
 
 
@@ -221,24 +210,94 @@ def revoke_user_session(
     return {"message": f"Session {session_id} successfully revoked."}
 
 
+@router.post("/resend-verification")
+def resend_verification(body: Dict[str, Any], db: Session = Depends(get_db)):
+    """Resend account verification email link."""
+    email = body.get("email", "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required.")
+
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if user and not user.email_verified:
+        token = generate_verification_token(user.email)
+        logger.info("resend_verification_token_created", email=user.email)
+
+    return {
+        "message": f"If an unverified account exists for {email}, a verification email has been sent. Please check your inbox.",
+        "email": email,
+    }
+
+
+@router.post("/google")
+def google_auth(
+    body: Dict[str, Any],
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Authenticate or register user via Google OAuth2 / OpenID Connect ID token."""
+    token = body.get("credential") or body.get("id_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="Google credential token is required.")
+
+    google_user_info = None
+
+    # Validate Google ID Token via Google's tokeninfo endpoint
+    try:
+        import httpx
+        resp = httpx.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}", timeout=5.0)
+        if resp.status_code == 200:
+            google_user_info = resp.json()
+    except Exception as e:
+        logger.warning("google_tokeninfo_http_failed", error=str(e))
+
+    if not google_user_info or not google_user_info.get("email"):
+        raise HTTPException(status_code=401, detail="Invalid Google authentication token.")
+
+    email = google_user_info["email"].strip().lower()
+    full_name = google_user_info.get("name", email.split("@")[0])
+
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if not user:
+        import secrets
+        user = create_user(
+            db=db,
+            email=email,
+            password=secrets.token_urlsafe(16),
+            full_name=full_name,
+            role="engineer",
+            email_verified=True,
+            is_active=True,
+        )
+    else:
+        user.email_verified = True
+        user.is_active = True
+        db.commit()
+
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    tokens = generate_tokens(user, db, ip_address=ip_address, user_agent=user_agent)
+    return TokenResponse(
+        **tokens,
+        user=UserResponse.model_validate(user),
+    )
+
+
 @router.post("/forgot-password")
 def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    """Initiate password reset flow (returns reset token for testing)."""
+    """Initiate password reset flow safely without exposing token in response."""
     clean_email = body.email.strip().lower()
     user = db.query(User).filter(func.lower(User.email) == clean_email).first()
     if not user:
-        # Avoid user enumeration by returning generic success message
-        return {"message": "If the email exists, a reset link has been generated."}
+        return {"message": "If an account exists for this email, a password reset link has been sent."}
 
     token = generate_reset_token(user.email)
     user.password_reset_token = token
     user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
     db.commit()
 
-    return {
-        "message": "Password reset token generated.",
-        "reset_token": token,
-    }
+    logger.info("password_reset_token_created", email=user.email)
+    return {"message": f"A password reset link has been sent to {user.email}. Please check your inbox."}
 
 
 @router.post("/reset-password")

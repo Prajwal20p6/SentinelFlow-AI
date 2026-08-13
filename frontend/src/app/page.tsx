@@ -78,9 +78,8 @@ export default function Home() {
         role: regRole,
         organization_id: regOrgId || undefined,
       });
-      setResetSuccessMsg(`Registration successful! Verification token generated: ${res.verification_token}.`);
-      setResetToken(res.verification_token);
-      setAuthView('reset');
+      setResetSuccessMsg(res.message || `Account created successfully. We've sent a verification link to ${email}.`);
+      setAuthView('verify_notice');
       setAuthLoading(false);
     } catch (err: any) {
       setAuthLoading(false);
@@ -110,13 +109,7 @@ export default function Home() {
     setAuthLoading(true);
     try {
       const res = await api.forgotPassword(email);
-      if (res.reset_token) {
-        setResetSuccessMsg(`Reset token generated: ${res.reset_token}`);
-        setResetToken(res.reset_token);
-        setAuthView('reset');
-      } else {
-        setResetSuccessMsg(res.message || 'Reset link generated.');
-      }
+      setResetSuccessMsg(res.message || `A password reset link has been sent to ${email}. Please check your inbox.`);
       setAuthLoading(false);
     } catch (err: any) {
       setAuthLoading(false);
