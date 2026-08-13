@@ -38,20 +38,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
   // Initialize Google Sign-In SDK if available
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-      try {
-        (window as any).google.accounts.id.initialize({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '1084293810298-sentinelflow.apps.googleusercontent.com',
-          callback: handleGoogleCallback,
-        });
-      } catch (e) {
-        console.error('Google Auth Init Exception:', e);
+    const initGoogle = () => {
+      if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+        const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+        if (clientId) {
+          try {
+            (window as any).google.accounts.id.initialize({
+              client_id: clientId,
+              callback: handleGoogleCallback,
+              auto_select: false,
+            });
+          } catch (e) {
+            console.error('Google Auth Init Exception:', e);
+          }
+        }
       }
-    }
+    };
+    initGoogle();
   }, []);
 
   const handleGoogleCallback = async (response: any) => {
-    if (!response.credential) return;
+    if (!response || !response.credential) return;
     setAuthLoading(true);
     setAuthError('');
     try {
@@ -59,25 +66,42 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       setUser(data.user);
       setIsLoggedIn(true);
     } catch (err: any) {
-      setAuthError(err?.data?.detail || err?.message || 'Google Sign-In failed. Please try again.');
+      setAuthError(err?.data?.detail || err?.message || 'Google authentication failed. Please try again.');
     } finally {
       setAuthLoading(false);
     }
   };
 
   const triggerGoogleSignIn = () => {
-    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-      (window as any).google.accounts.id.prompt();
-    } else {
-      // Direct OAuth fallback or user guidance
-      const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-      if (!googleClientId) {
-        setAuthError('Google Sign-In requires GOOGLE_CLIENT_ID environment variable in production. Please use email sign-in or configure Client ID.');
+    setAuthError('');
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id && googleClientId) {
+      try {
+        (window as any).google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleCallback,
+        });
+        (window as any).google.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            // Fallback to direct OAuth redirect if One-Tap prompt is skipped/suppressed
+            const redirectUri = encodeURIComponent(`${window.location.origin}/auth/google/callback`);
+            window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${redirectUri}&response_type=id_token&scope=openid%20email%20profile&nonce=${Date.now()}`;
+          }
+        });
         return;
+      } catch (err) {
+        console.error('Google prompt exception:', err);
       }
+    }
+
+    if (googleClientId) {
       const redirectUri = encodeURIComponent(`${window.location.origin}/auth/google/callback`);
       window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${redirectUri}&response_type=id_token&scope=openid%20email%20profile&nonce=${Date.now()}`;
+      return;
     }
+
+    setAuthError('Google Sign-In is temporarily unavailable. Please try again.');
   };
 
   const handleResendEmail = async () => {

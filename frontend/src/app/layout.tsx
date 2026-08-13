@@ -26,6 +26,7 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} dark`}>
       <head>
         <link rel="icon" href="/favicon.ico" />
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
       </head>
       <body className="bg-[#0a0e17] text-[#e2e8f0] min-h-screen">
         {children}
