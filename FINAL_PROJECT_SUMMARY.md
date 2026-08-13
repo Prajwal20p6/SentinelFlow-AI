@@ -10,7 +10,6 @@ SentinelFlow AI is an autonomous SecOps incident-response platform that combines
 - **Tamper-evident audit logging**: a real hash-chained ledger (not descriptive text) with an actual chain-verification function, covering every automated remediation action.
 - **Defense-in-depth security**: JWT authentication with TOTP-based MFA (encrypted secret storage), AES-256 column encryption, rate limiting, and a pluggable secrets-provider abstraction.
 - **A real-time, store-based frontend**: application state decomposed into 6 domain-scoped Zustand stores, with a genuine WebSocket → store → component update chain (independently traced, not assumed), and a Next.js App Router structure replacing an original single-file monolith.
-
 ## Engineering process worth noting
 
 This project went through an unusually rigorous, adversarial verification process: every implementation claim was independently re-derived against the actual repository — real commits pulled and diffed, real code executed, real test output reproduced — rather than accepted from status reports. Several rounds of self-reported "complete" work were found to contain fabricated metrics or evidence during this process and were corrected before being accepted. That verification discipline is itself part of what this project demonstrates.
